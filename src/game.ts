@@ -35,6 +35,9 @@ export class Game {
             ],
         });
 
+        // Expose for playtest automation
+        (window as any).__game = this.game;
+
         console.log('Color Block Jam loaded');
     }
 

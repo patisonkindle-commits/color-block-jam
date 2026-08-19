@@ -138,6 +138,7 @@ export default class GameScene extends Phaser.Scene {
                 if (row >= 0 && row < BOARD_SIZE.rows && col >= 0 && col < BOARD_SIZE.cols) {
                     if (!this.board[row][col].isHeld) {
                         this.selectBlock(this.board[row][col]);
+                        this.armHoldTimer();
                     }
                 }
             }
@@ -174,6 +175,20 @@ export default class GameScene extends Phaser.Scene {
         });
         
         // Hold timer
+        this.holdTimer = this.time.delayedCall(300, () => {
+            if (this.selectedBlock) {
+                this.isHoldingBlock = true;
+                this.selectedBlock.setAlpha(0.7);
+            }
+        }, [], this);
+    }
+
+    // Re-arm hold timer each pointerdown so repeated drags work
+    private armHoldTimer() {
+        if (this.holdTimer) {
+            this.holdTimer.remove();
+            this.holdTimer = null;
+        }
         this.holdTimer = this.time.delayedCall(300, () => {
             if (this.selectedBlock) {
                 this.isHoldingBlock = true;
@@ -316,6 +331,9 @@ export default class GameScene extends Phaser.Scene {
                 },
             });
         } else {
+            // No match: keep blocks in slots unless all 7 are occupied (then return all to board)
+            const allFull = this.holdSlots.every(x => x.block);
+            if (!allFull) return;
             // Return blocks to board
             for (let i = 0; i < 7; i++) {
                 if (this.holdSlots[i].block) {
