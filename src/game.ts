@@ -1,0 +1,52 @@
+import Phaser from 'phaser';
+import { GAME_CONFIG, COLORS, LEVELS } from './config';
+
+export class Game {
+    private game: Phaser.Game;
+    private gameState: {
+        score: number;
+        level: number;
+        moves: number;
+        maxMoves: number;
+        board: any[];
+        holdSlots: any[];
+    };
+
+    constructor() {
+        this.gameState = {
+            score: 0,
+            level: 1,
+            moves: 0,
+            maxMoves: 20,
+            board: [],
+            holdSlots: [],
+        };
+
+        this.game = new Phaser.Game({
+            type: Phaser.AUTO,
+            ...GAME_CONFIG,
+            scene: [
+                new (require('./scenes/boot').default)(),
+                new (require('./scenes/menu').default)(),
+                new (require('./scenes/game').default)(this.gameState),
+            ],
+        });
+
+        console.log('Color Block Jam loaded');
+    }
+
+    getScore(): number {
+        return this.gameState.score;
+    }
+
+    getLevel(): number {
+        return this.gameState.level;
+    }
+}
+
+// Start the game when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => new Game());
+} else {
+    new Game();
+}
