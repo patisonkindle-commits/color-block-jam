@@ -1,5 +1,8 @@
 import Phaser from 'phaser';
 import { GAME_CONFIG, COLORS, LEVELS } from './config';
+import BootScene from './scenes/boot';
+import MenuScene from './scenes/menu';
+import GameScene from './scenes/game';
 
 export class Game {
     private game: Phaser.Game;
@@ -26,9 +29,9 @@ export class Game {
             type: Phaser.AUTO,
             ...GAME_CONFIG,
             scene: [
-                new (require('./scenes/boot').default)(),
-                new (require('./scenes/menu').default)(),
-                new (require('./scenes/game').default)(this.gameState),
+                new BootScene(),
+                new MenuScene(),
+                new GameScene(this.gameState),
             ],
         });
 
