@@ -30,7 +30,7 @@ export default class GameScene extends Phaser.Scene {
         this.createHoldSlots();
         this.createHoldIndicator();
         this.setupInputHandlers();
-        this.fillBoard();
+        this.refillBoard();
         this.updateUI();
     }
 
@@ -151,14 +151,14 @@ export default class GameScene extends Phaser.Scene {
                     this.holdIndicator.fillStyle(0x4CAF50, 0.4);
                     this.holdIndicator.clear();
                     this.holdIndicator.fillRoundedRect(
-                        holdStartX - 10, holdY - 40, 7 * (CELL_SIZE + 10) + 20, 80, 15
+                        this.holdStartX - 10, holdY - 40, 7 * (CELL_SIZE + 10) + 20, 80, 15
                     );
                 } else {
                     this.holdIndicator.setAlpha(0.2);
                     this.holdIndicator.fillStyle(0x4CAF50, 0.2);
                     this.holdIndicator.clear();
                     this.holdIndicator.fillRoundedRect(
-                        holdStartX - 10, holdY - 40, 7 * (CELL_SIZE + 10) + 20, 80, 15
+                        this.holdStartX - 10, holdY - 40, 7 * (CELL_SIZE + 10) + 20, 80, 15
                     );
                 }
             }
