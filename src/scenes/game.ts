@@ -11,10 +11,10 @@ export default class GameScene extends Phaser.Scene {
     private movesLeft: number = 30;
     private currentLevel: number = 0;
     
-    private scoreText: Phaser.GameObjects.Text;
-    private movesText: Phaser.GameObjects.Text;
-    private levelText: Phaser.GameObjects.Text;
-    private holdIndicator: Phaser.GameObjects.Graphics;
+    private scoreText!: Phaser.GameObjects.Text;
+    private movesText!: Phaser.GameObjects.Text;
+    private levelText!: Phaser.GameObjects.Text;
+    private holdIndicator!: Phaser.GameObjects.Graphics;
     
     private colorNames = ['red', 'orange', 'yellow', 'green', 'blue', 'purple'];
     private colorValues = [0xFF6B6B, 0xFF8E53, 0xFFC733, 0x4CAF50, 0x2196F3, 0x7C4DFF];
