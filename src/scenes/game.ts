@@ -422,7 +422,7 @@ export default class GameScene extends Phaser.Scene {
             fontStyle: 'bold',
         }).setOrigin(0.5);
         restartBtn.add([restartBg, restartText]);
-        restartBtn.setInteractive({ useHandCursor: true });
+        restartBtn.setInteractive(new Phaser.Geom.Rectangle(-110, -25, 220, 50), Phaser.Geom.Rectangle.Contains);
         restartBtn.on('pointerdown', () => this.scene.restart());
     }
 }

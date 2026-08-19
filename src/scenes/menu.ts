@@ -37,7 +37,7 @@ export default class MenuScene extends Phaser.Scene {
             fontStyle: 'bold',
         }).setOrigin(0.5);
         playBtn.add([playBg, playText]);
-        playBtn.setInteractive({ useHandCursor: true });
+        playBtn.setInteractive(new Phaser.Geom.Rectangle(-120, -30, 240, 60), Phaser.Geom.Rectangle.Contains);
         playBtn.on('pointerdown', () => this.playGame());
         
         // Settings button
@@ -50,7 +50,7 @@ export default class MenuScene extends Phaser.Scene {
             fontStyle: 'bold',
         }).setOrigin(0.5);
         settingsBtn.add([settingsBg, settingsText]);
-        settingsBtn.setInteractive({ useHandCursor: true });
+        settingsBtn.setInteractive(new Phaser.Geom.Rectangle(-110, -25, 220, 50), Phaser.Geom.Rectangle.Contains);
         settingsBtn.on('pointerdown', () => this.showSettings());
     }
 
