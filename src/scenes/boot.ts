@@ -20,7 +20,10 @@ export default class BootScene extends Phaser.Scene {
     }
 
     create() {
-        this.scene.start('MenuScene');
+        // Asset textures are procedural and generated in BootScene.preload().
+        // Hand over to PreloadScene, which shows a progress bar and loads
+        // real asset files when present (empty dirs are skipped gracefully).
+        this.scene.start('PreloadScene');
     }
 
     private createBlockTexture(key: string, color: number) {
