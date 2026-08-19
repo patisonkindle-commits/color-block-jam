@@ -81,13 +81,14 @@ export default class GameScene extends Phaser.Scene {
                 const x = startX + col * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2;
                 const y = startY + row * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2;
                 
-                const block = this.add.image(x, y, 'block');
+                const colorIdx = Math.floor(Math.random() * 6);
+                const block = this.add.image(x, y, this.colorNames[colorIdx]);
                 block.setInteractive({ useHandCursor: true });
                 block.column = col;
                 block.row = row;
                 block.isHeld = false;
                 block.holdingSlot = -1;
-                block.setData('color', Math.floor(Math.random() * 6));
+                block.setData('color', colorIdx);
                 
                 this.board[row][col] = block;
             }
@@ -109,6 +110,7 @@ export default class GameScene extends Phaser.Scene {
             slotBg.x = x;
             slotBg.y = holdY;
             slotBg.slotIndex = i;
+            (slotBg as any).block = undefined;
             
             this.holdSlots.push(slotBg);
         }
@@ -360,17 +362,18 @@ export default class GameScene extends Phaser.Scene {
         for (let row = 0; row < BOARD_SIZE.rows; row++) {
             for (let col = 0; col < BOARD_SIZE.cols; col++) {
                 if (!this.board[row][col]) {
+                    const colorIdx = Math.floor(Math.random() * 6);
                     const newBlock = this.add.image(
                         BOARD_OFFSET_X + col * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2,
                         -CELL_SIZE,
-                        'block'
+                        this.colorNames[colorIdx]
                     );
                     newBlock.setInteractive({ useHandCursor: true });
                     newBlock.column = col;
                     newBlock.row = row;
                     newBlock.isHeld = false;
                     newBlock.holdingSlot = -1;
-                    newBlock.setData('color', Math.floor(Math.random() * 6));
+                    newBlock.setData('color', colorIdx);
                     
                     this.tweens.add({
                         targets: newBlock,
