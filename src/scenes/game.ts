@@ -10,6 +10,7 @@ export default class GameScene extends Phaser.Scene {
     private score: number = 0;
     private movesLeft: number = 30;
     private currentLevel: number = 0;
+    private levelCleared: boolean = false;
     
     private scoreText: Phaser.GameObjects.Text;
     private movesText: Phaser.GameObjects.Text;
@@ -24,6 +25,7 @@ export default class GameScene extends Phaser.Scene {
     }
 
     create() {
+        this.movesLeft = LEVELS[this.currentLevel].moves;
         this.createBackground();
         this.createUI();
         this.createBoard();
@@ -132,6 +134,7 @@ export default class GameScene extends Phaser.Scene {
             const boardHeight = BOARD_SIZE.rows * (CELL_SIZE + CELL_GAP) + CELL_SIZE;
             
             if (pointer.y >= boardY && pointer.y <= boardY + boardHeight) {
+                if (this.levelCleared) return;
                 const col = Math.floor((pointer.x - BOARD_OFFSET_X) / (CELL_SIZE + CELL_GAP));
                 const row = Math.floor((pointer.y - boardY) / (CELL_SIZE + CELL_GAP));
                 
@@ -214,8 +217,8 @@ export default class GameScene extends Phaser.Scene {
         const holdY = BOARD_OFFSET_Y + BOARD_SIZE.rows * (CELL_SIZE + CELL_GAP) + 50;
         
         if (this.isHoldingBlock && pointer.y > holdY - 50 && pointer.y < holdY + 100) {
-            // Drop block in hold slot
-            const col = Math.floor((pointer.x - BOARD_OFFSET_X) / (CELL_SIZE + 10));
+            // Drop block in hold slot — index from holdStartX (slot 0 = x=45), not BOARD_OFFSET_X
+            const col = Math.floor((pointer.x - this.holdStartX) / (CELL_SIZE + 10));
             const slotIdx = Math.max(0, Math.min(6, col));
             
             if (this.holdSlots[slotIdx].block === undefined) {
@@ -328,6 +331,7 @@ export default class GameScene extends Phaser.Scene {
                     
                     // Refill board
                     this.refillBoard();
+                    this.checkVictory();
                 },
             });
         } else {
@@ -417,8 +421,51 @@ export default class GameScene extends Phaser.Scene {
         }
     }
 
+    private checkVictory() {
+        if (this.levelCleared) return;
+        const target = LEVELS[this.currentLevel].target;
+        if (this.score < target) return;
+        this.levelCleared = true;
+        this.showLevelClear();
+    }
+
+    private showLevelClear() {
+        const nextLevel = this.currentLevel + 1 < LEVELS.length;
+        const overlay = this.add.rectangle(360, 640, 720, 1280, 0x000000, 0.8);
+        const title = this.add.text(360, 520, 'LEVEL CLEAR!', {
+            fontSize: '56px',
+            fontFamily: 'Arial Black',
+            color: '#FFD700',
+            fontStyle: 'bold',
+        }).setOrigin(0.5);
+        const score = this.add.text(360, 610, `Score: ${this.score} / ${LEVELS[this.currentLevel].target}`, {
+            fontSize: '30px',
+            fontFamily: 'Arial',
+            color: '#FFFFFF',
+        }).setOrigin(0.5);
+        const btn = this.add.container(360, 740);
+        const btnBg = this.add.image(0, 0, 'restart');
+        const btnText = this.add.text(0, 0, nextLevel ? 'NEXT LEVEL' : 'YOU WIN!', {
+            fontSize: '28px',
+            fontFamily: 'Arial Black',
+            color: '#FFFFFF',
+            fontStyle: 'bold',
+        }).setOrigin(0.5);
+        btn.add([btnBg, btnText]);
+        btn.setInteractive(new Phaser.Geom.Rectangle(-110, -25, 220, 50), Phaser.Geom.Rectangle.Contains);
+        btn.on('pointerdown', () => {
+            if (nextLevel) {
+                this.currentLevel++;
+                this.score = 0;
+                this.levelCleared = false;
+                this.scene.restart();
+            } else {
+                this.scene.start('MenuScene');
+            }
+        });
+    }
+
     private gameOver() {
-        console.log('Game Over!');
         // Show game over screen
         const overlay = this.add.rectangle(360, 640, 720, 1280, 0x000000, 0.8);
         const title = this.add.text(360, 500, 'GAME OVER', {
