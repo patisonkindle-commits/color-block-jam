@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 
-import { hasSave, loadGame } from './systems/save';
+import { hasSave, loadGame } from '../systems/save';
 
 export default class MenuScene extends Phaser.Scene {
     private continueBtn!: Phaser.GameObjects.Container;
