@@ -1,8 +1,10 @@
 import Phaser from 'phaser';
-import { GAME_CONFIG, COLORS, LEVELS } from './config';
+import { GAME_CONFIG } from './config';
 import BootScene from './scenes/boot';
+import PreloadScene from './scenes/preload';
 import MenuScene from './scenes/menu';
 import GameScene from './scenes/game';
+import UIScene from './scenes/ui';
 
 export class Game {
     private game: Phaser.Game;
@@ -30,10 +32,24 @@ export class Game {
             ...GAME_CONFIG,
             scene: [
                 new BootScene(),
+                new PreloadScene(),
                 new MenuScene(),
-                new GameScene(this.gameState),
+                new UIScene(),
+                new GameScene(),
             ],
+            callbacks: {
+                postBoot: () => {
+                    try {
+                        this.game.scene.start('PreloadScene');
+                    } catch (e) {
+                        console.error('scene start failed', e);
+                    }
+                },
+            },
         });
+
+        // Expose for playtest automation
+        (window as any).__game = this.game;
 
         console.log('Color Block Jam loaded');
     }

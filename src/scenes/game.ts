@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLORS, BOARD_SIZE, CELL_SIZE, CELL_GAP, BOARD_OFFSET_X, BOARD_OFFSET_Y, LEVELS } from '../config';
+import { COLORS, BOARD_SIZE, CELL_SIZE, CELL_GAP, BOARD_OFFSET_X, BOARD_OFFSET_Y, LEVELS, HOLD_SLOTS, HOLD_DX, HOLD_START_X, HOLD_Y, HOLD_DROP_TOP, HOLD_DROP_BOTTOM, HOLD_INDICATOR_Y } from '../config';
 
 export default class GameScene extends Phaser.Scene {
     private board: any[][] = [];
@@ -10,11 +10,8 @@ export default class GameScene extends Phaser.Scene {
     private score: number = 0;
     private movesLeft: number = 30;
     private currentLevel: number = 0;
-    
-    private scoreText: Phaser.GameObjects.Text;
-    private movesText: Phaser.GameObjects.Text;
-    private levelText: Phaser.GameObjects.Text;
-    private holdIndicator: Phaser.GameObjects.Graphics;
+    private levelCleared: boolean = false;
+    private holdIndicator!: Phaser.GameObjects.Graphics;
     
     private colorNames = ['red', 'orange', 'yellow', 'green', 'blue', 'purple'];
     private colorValues = [0xFF6B6B, 0xFF8E53, 0xFFC733, 0x4CAF50, 0x2196F3, 0x7C4DFF];
@@ -24,8 +21,12 @@ export default class GameScene extends Phaser.Scene {
     }
 
     create() {
+        // HUD overlay runs in parallel (no-op if already running, e.g. after restart)
+        if (!this.scene.isActive('UIScene')) {
+            this.scene.launch('UIScene');
+        }
+        this.movesLeft = LEVELS[this.currentLevel].moves;
         this.createBackground();
-        this.createUI();
         this.createBoard();
         this.createHoldSlots();
         this.createHoldIndicator();
@@ -36,38 +37,6 @@ export default class GameScene extends Phaser.Scene {
 
     private createBackground() {
         this.add.rectangle(0, 0, 720, 1280, 0x1a1a2e).setOrigin(0, 0);
-    }
-
-    private createUI() {
-        // Score text
-        this.scoreText = this.add.text(50, 50, 'Score: 0', {
-            fontSize: '28px',
-            fontFamily: 'Arial, sans-serif',
-            color: '#FFFFFF',
-            fontStyle: 'bold',
-            stroke: '#000000',
-            strokeThickness: 3,
-        });
-
-        // Moves text
-        this.movesText = this.add.text(550, 50, 'Moves: 30', {
-            fontSize: '28px',
-            fontFamily: 'Arial, sans-serif',
-            color: '#FFFFFF',
-            fontStyle: 'bold',
-            stroke: '#000000',
-            strokeThickness: 3,
-        });
-
-        // Level text
-        this.levelText = this.add.text(360, 50, 'Level 1', {
-            fontSize: '24px',
-            fontFamily: 'Arial, sans-serif',
-            color: '#FFD700',
-            fontStyle: 'bold',
-            stroke: '#000000',
-            strokeThickness: 2,
-        }).setOrigin(0.5);
     }
 
     private createBoard() {
@@ -81,13 +50,14 @@ export default class GameScene extends Phaser.Scene {
                 const x = startX + col * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2;
                 const y = startY + row * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2;
                 
-                const block = this.add.image(x, y, 'block');
+                const colorIdx = Math.floor(Math.random() * 6);
+                const block = this.add.image(x, y, this.colorNames[colorIdx]);
                 block.setInteractive({ useHandCursor: true });
                 block.column = col;
                 block.row = row;
                 block.isHeld = false;
                 block.holdingSlot = -1;
-                block.setData('color', Math.floor(Math.random() * 6));
+                block.setData('color', colorIdx);
                 
                 this.board[row][col] = block;
             }
@@ -96,11 +66,11 @@ export default class GameScene extends Phaser.Scene {
 
     private createHoldSlots() {
         this.holdSlots = [];
-        const holdY = BOARD_OFFSET_Y + BOARD_SIZE.rows * (CELL_SIZE + CELL_GAP) + 50;
-        const holdStartX = (720 - 7 * (CELL_SIZE + 10)) / 2;
+        const holdY = HOLD_Y;
+        const holdStartX = HOLD_START_X;
         
-        for (let i = 0; i < 7; i++) {
-            const x = holdStartX + i * (CELL_SIZE + 10) + CELL_SIZE / 2;
+        for (let i = 0; i < HOLD_SLOTS; i++) {
+            const x = holdStartX + i * HOLD_DX + CELL_SIZE / 2;
             
             // Hold slot background
             const slotBg = this.add.rectangle(x, holdY, CELL_SIZE, CELL_SIZE, 0x000000, 0.3);
@@ -109,18 +79,19 @@ export default class GameScene extends Phaser.Scene {
             slotBg.x = x;
             slotBg.y = holdY;
             slotBg.slotIndex = i;
+            (slotBg as any).block = undefined;
             
             this.holdSlots.push(slotBg);
         }
     }
 
     private createHoldIndicator() {
-        const holdY = BOARD_OFFSET_Y + BOARD_SIZE.rows * (CELL_SIZE + CELL_GAP) + 100;
-        const holdStartX = (720 - 7 * (CELL_SIZE + 10)) / 2;
+        const holdY = HOLD_Y;
+        const holdStartX = HOLD_START_X;
         
         this.holdIndicator = this.add.graphics();
         this.holdIndicator.fillStyle(0x4CAF50, 0.2);
-        this.holdIndicator.fillRoundedRect(holdStartX - 10, holdY - 40, 7 * (CELL_SIZE + 10) + 20, 80, 15);
+        this.holdIndicator.fillRoundedRect(holdStartX - 10, holdY - 40, HOLD_SLOTS * HOLD_DX + 20, 80, 15);
     }
 
     private setupInputHandlers() {
@@ -130,12 +101,14 @@ export default class GameScene extends Phaser.Scene {
             const boardHeight = BOARD_SIZE.rows * (CELL_SIZE + CELL_GAP) + CELL_SIZE;
             
             if (pointer.y >= boardY && pointer.y <= boardY + boardHeight) {
+                if (this.levelCleared) return;
                 const col = Math.floor((pointer.x - BOARD_OFFSET_X) / (CELL_SIZE + CELL_GAP));
                 const row = Math.floor((pointer.y - boardY) / (CELL_SIZE + CELL_GAP));
                 
                 if (row >= 0 && row < BOARD_SIZE.rows && col >= 0 && col < BOARD_SIZE.cols) {
                     if (!this.board[row][col].isHeld) {
                         this.selectBlock(this.board[row][col]);
+                        this.armHoldTimer();
                     }
                 }
             }
@@ -145,20 +118,20 @@ export default class GameScene extends Phaser.Scene {
         this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
             if (this.selectedBlock && this.isHoldingBlock) {
                 // Check if block is in hold zone
-                const holdY = BOARD_OFFSET_Y + BOARD_SIZE.rows * (CELL_SIZE + CELL_GAP) + 50;
-                if (pointer.y > holdY - 50 && pointer.y < holdY + 100) {
+                const holdY = HOLD_Y;
+                if (pointer.y > HOLD_DROP_TOP && pointer.y < HOLD_DROP_BOTTOM) {
                     this.holdIndicator.setAlpha(0.5);
                     this.holdIndicator.fillStyle(0x4CAF50, 0.4);
                     this.holdIndicator.clear();
                     this.holdIndicator.fillRoundedRect(
-                        this.holdStartX - 10, holdY - 40, 7 * (CELL_SIZE + 10) + 20, 80, 15
+                        HOLD_START_X - 10, holdY - 40, HOLD_SLOTS * HOLD_DX + 20, 80, 15
                     );
                 } else {
                     this.holdIndicator.setAlpha(0.2);
                     this.holdIndicator.fillStyle(0x4CAF50, 0.2);
                     this.holdIndicator.clear();
                     this.holdIndicator.fillRoundedRect(
-                        this.holdStartX - 10, holdY - 40, 7 * (CELL_SIZE + 10) + 20, 80, 15
+                        HOLD_START_X - 10, holdY - 40, HOLD_SLOTS * HOLD_DX + 20, 80, 15
                     );
                 }
             }
@@ -180,7 +153,19 @@ export default class GameScene extends Phaser.Scene {
         }, [], this);
     }
 
-    private holdStartX = (720 - 7 * (CELL_SIZE + 10)) / 2;
+    // Re-arm hold timer each pointerdown so repeated drags work
+    private armHoldTimer() {
+        if (this.holdTimer) {
+            this.holdTimer.remove();
+            this.holdTimer = null;
+        }
+        this.holdTimer = this.time.delayedCall(300, () => {
+            if (this.selectedBlock) {
+                this.isHoldingBlock = true;
+                this.selectedBlock.setAlpha(0.7);
+            }
+        }, [], this);
+    }
 
     private selectBlock(block: any) {
         this.selectedBlock = block;
@@ -194,11 +179,11 @@ export default class GameScene extends Phaser.Scene {
     private releaseBlock(pointer: Phaser.Input.Pointer) {
         if (!this.selectedBlock) return;
         
-        const holdY = BOARD_OFFSET_Y + BOARD_SIZE.rows * (CELL_SIZE + CELL_GAP) + 50;
+        const holdY = HOLD_Y;
         
-        if (this.isHoldingBlock && pointer.y > holdY - 50 && pointer.y < holdY + 100) {
-            // Drop block in hold slot
-            const col = Math.floor((pointer.x - BOARD_OFFSET_X) / (CELL_SIZE + 10));
+        if (this.isHoldingBlock && pointer.y > HOLD_DROP_TOP && pointer.y < HOLD_DROP_BOTTOM) {
+            // Drop block in hold slot — index from holdStartX (slot 0 = x=45), not BOARD_OFFSET_X
+            const col = Math.floor((pointer.x - HOLD_START_X) / HOLD_DX);
             const slotIdx = Math.max(0, Math.min(6, col));
             
             if (this.holdSlots[slotIdx].block === undefined) {
@@ -227,10 +212,10 @@ export default class GameScene extends Phaser.Scene {
     }
 
     private moveBlockToHold(block: any, slotIndex: number) {
-        const holdY = BOARD_OFFSET_Y + BOARD_SIZE.rows * (CELL_SIZE + CELL_GAP) + 50;
-        const holdStartX = this.holdStartX;
+        const holdY = HOLD_Y;
+        const holdStartX = HOLD_START_X;
         
-        const targetX = holdStartX + slotIndex * (CELL_SIZE + 10) + CELL_SIZE / 2;
+        const targetX = holdStartX + slotIndex * HOLD_DX + CELL_SIZE / 2;
         const targetY = holdY;
         
         block.isHeld = true;
@@ -311,9 +296,13 @@ export default class GameScene extends Phaser.Scene {
                     
                     // Refill board
                     this.refillBoard();
+                    this.checkVictory();
                 },
             });
         } else {
+            // No match: keep blocks in slots unless all 7 are occupied (then return all to board)
+            const allFull = this.holdSlots.every(x => x.block);
+            if (!allFull) return;
             // Return blocks to board
             for (let i = 0; i < 7; i++) {
                 if (this.holdSlots[i].block) {
@@ -355,22 +344,23 @@ export default class GameScene extends Phaser.Scene {
     }
 
     private refillBoard() {
-        const holdY = BOARD_OFFSET_Y + BOARD_SIZE.rows * (CELL_SIZE + CELL_GAP) + 50;
+        const holdY = HOLD_Y;
         
         for (let row = 0; row < BOARD_SIZE.rows; row++) {
             for (let col = 0; col < BOARD_SIZE.cols; col++) {
                 if (!this.board[row][col]) {
+                    const colorIdx = Math.floor(Math.random() * 6);
                     const newBlock = this.add.image(
                         BOARD_OFFSET_X + col * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2,
                         -CELL_SIZE,
-                        'block'
+                        this.colorNames[colorIdx]
                     );
                     newBlock.setInteractive({ useHandCursor: true });
                     newBlock.column = col;
                     newBlock.row = row;
                     newBlock.isHeld = false;
                     newBlock.holdingSlot = -1;
-                    newBlock.setData('color', Math.floor(Math.random() * 6));
+                    newBlock.setData('color', colorIdx);
                     
                     this.tweens.add({
                         targets: newBlock,
@@ -386,9 +376,11 @@ export default class GameScene extends Phaser.Scene {
     }
 
     private updateUI() {
-        this.scoreText.setText(`Score: ${this.score}`);
-        this.movesText.setText(`Moves: ${this.movesLeft}`);
-        this.levelText.setText(`Level ${this.currentLevel + 1}`);
+        this.registry.set('hud', {
+            score: this.score,
+            moves: this.movesLeft,
+            level: this.currentLevel,
+        });
         
         // Check game over
         if (this.movesLeft <= 0) {
@@ -396,8 +388,51 @@ export default class GameScene extends Phaser.Scene {
         }
     }
 
+    private checkVictory() {
+        if (this.levelCleared) return;
+        const target = LEVELS[this.currentLevel].target;
+        if (this.score < target) return;
+        this.levelCleared = true;
+        this.showLevelClear();
+    }
+
+    private showLevelClear() {
+        const nextLevel = this.currentLevel + 1 < LEVELS.length;
+        const overlay = this.add.rectangle(360, 640, 720, 1280, 0x000000, 0.8);
+        const title = this.add.text(360, 520, 'LEVEL CLEAR!', {
+            fontSize: '56px',
+            fontFamily: 'Arial Black',
+            color: '#FFD700',
+            fontStyle: 'bold',
+        }).setOrigin(0.5);
+        const score = this.add.text(360, 610, `Score: ${this.score} / ${LEVELS[this.currentLevel].target}`, {
+            fontSize: '30px',
+            fontFamily: 'Arial',
+            color: '#FFFFFF',
+        }).setOrigin(0.5);
+        const btn = this.add.container(360, 740);
+        const btnBg = this.add.image(0, 0, 'restart');
+        const btnText = this.add.text(0, 0, nextLevel ? 'NEXT LEVEL' : 'YOU WIN!', {
+            fontSize: '28px',
+            fontFamily: 'Arial Black',
+            color: '#FFFFFF',
+            fontStyle: 'bold',
+        }).setOrigin(0.5);
+        btn.add([btnBg, btnText]);
+        btn.setInteractive(new Phaser.Geom.Rectangle(-110, -25, 220, 50), Phaser.Geom.Rectangle.Contains);
+        btn.on('pointerdown', () => {
+            if (nextLevel) {
+                this.currentLevel++;
+                this.score = 0;
+                this.levelCleared = false;
+                this.scene.restart();
+            } else {
+                this.scene.start('MenuScene');
+            }
+        });
+    }
+
     private gameOver() {
-        console.log('Game Over!');
         // Show game over screen
         const overlay = this.add.rectangle(360, 640, 720, 1280, 0x000000, 0.8);
         const title = this.add.text(360, 500, 'GAME OVER', {
