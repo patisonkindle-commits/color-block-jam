@@ -2,7 +2,8 @@ import Phaser from 'phaser';
 import {
     COLORS, BOARD_SIZE, CELL_SIZE, CELL_GAP, BOARD_OFFSET_X, BOARD_OFFSET_Y,
     LEVELS, MAX_HOLD_SLOTS, HOLD_SLOTS, HOLD_DX, HOLD_START_X, HOLD_Y, HOLD_DROP_TOP,
-    HOLD_DROP_BOTTOM, HOLD_INDICATOR_Y, BOOSTER_COUNTS, BOOSTER_Y, COMBO_WINDOW, COMBO_MULT
+    HOLD_DROP_BOTTOM, HOLD_INDICATOR_Y, BOOSTER_COUNTS, BOOSTER_Y, COMBO_WINDOW, COMBO_MULT,
+    OBSTACLE, OBSTACLES_PER_LEVEL
 } from '../config';
 import { saveGame, loadGame, hasSave, clearSave } from '../systems/save';
 import { SFX } from '../systems/audio';
@@ -33,8 +34,8 @@ export default class GameScene extends Phaser.Scene {
 
     private undoStack: { boardState: any[][]; movesLeft: number; score: number; level: number; slotCount: number; heldState: any[] }[] = [];
 
-    private colorNames = ['red', 'orange', 'yellow', 'green', 'blue', 'purple'];
-    private colorValues = [0xFF6B6B, 0xFF8E53, 0xFFC733, 0x4CAF50, 0x2196F3, 0x7C4DFF];
+    private colorNames = ['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'cyan', 'stone'];
+    private colorValues = [0xFF6B6B, 0xFF8E53, 0xFFC733, 0x4CAF50, 0x2196F3, 0x7C4DFF, 0x00E5FF, 0x8A8A8A];
 
     constructor() {
         super({ key: 'GameScene' });
@@ -75,7 +76,7 @@ export default class GameScene extends Phaser.Scene {
                     const x = BOARD_OFFSET_X + col * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2;
                     const y = BOARD_OFFSET_Y + row * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2;
                     const block = this.addBlock(x, y, cell.color);
-                    block.setInteractive({ useHandCursor: true });
+                    if (cell.color !== OBSTACLE) block.setInteractive({ useHandCursor: true });
                     block.column = cell.col;
                     block.row = cell.row;
                     block.isHeld = false;
@@ -91,7 +92,7 @@ export default class GameScene extends Phaser.Scene {
                 const x = HOLD_START_X + i * HOLD_DX + CELL_SIZE / 2;
                 const y = HOLD_Y;
                 const block = this.addBlock(x, y, hd.color);
-                block.setInteractive({ useHandCursor: true });
+                if (hd.color !== OBSTACLE) block.setInteractive({ useHandCursor: true });
                 block.column = hd.boardCol;
                 block.row = hd.boardRow;
                 block.isHeld = true;
@@ -118,11 +119,12 @@ export default class GameScene extends Phaser.Scene {
         this.add.rectangle(0, 0, 720, 1280, 0x1a1a2e).setOrigin(0, 0);
     }
 
-    // Create a block image at (x,y) with real-texture scaling
+    // Create a block image at (x,y) with real-texture scaling; stones use 'stone' texture
     private addBlock(x: number, y: number, colorIdx: number) {
-        const key = this.colorNames[colorIdx];
+        const key = colorIdx === OBSTACLE ? 'stone' : this.colorNames[colorIdx];
         const block = this.add.image(x, y, key);
         block.setDisplaySize(CELL_SIZE, CELL_SIZE);
+        if (colorIdx !== OBSTACLE) block.setInteractive({ useHandCursor: true });
         return block;
     }
 
@@ -131,13 +133,48 @@ export default class GameScene extends Phaser.Scene {
         const startX = BOARD_OFFSET_X;
         const startY = BOARD_OFFSET_Y;
 
+        // Stone obstacles: N cells per level (level 0 = none), never in a 3-cell straight line
+        const stoneCount = OBSTACLES_PER_LEVEL[Math.min(this.currentLevel, OBSTACLES_PER_LEVEL.length - 1)] || 0;
+        const stones = new Set<number>();
+        let attempts = 0;
+        const all = [];
+        for (let r = 0; r < BOARD_SIZE.rows; r++)
+            for (let c = 0; c < BOARD_SIZE.cols; c++) all.push(r * BOARD_SIZE.cols + c);
+
+        outer:
+        while (stones.size < stoneCount && attempts++ < stoneCount * 40) {
+            const idx = all[Math.floor(Math.random() * all.length)];
+            const r = Math.floor(idx / BOARD_SIZE.cols);
+            const c = idx % BOARD_SIZE.cols;
+            // reject if it would complete a 3-in-a-row of stones
+            for (let d = -2; d <= 0; d++) {
+                const inRow = c + d >= 0 && c + d + 2 < BOARD_SIZE.cols;
+                const inCol = r + d >= 0 && r + d + 2 < BOARD_SIZE.rows;
+                if (inRow && stones.has(r * BOARD_SIZE.cols + (c + d)) && stones.has(r * BOARD_SIZE.cols + (c + d + 1)) && stones.has(r * BOARD_SIZE.cols + (c + d + 2))) continue outer;
+                if (inCol && stones.has((r + d) * BOARD_SIZE.cols + c) && stones.has((r + d + 1) * BOARD_SIZE.cols + c) && stones.has((r + d + 2) * BOARD_SIZE.cols + c)) continue outer;
+            }
+            stones.add(idx);
+        }
+
         for (let row = 0; row < BOARD_SIZE.rows; row++) {
             this.board[row] = [];
             for (let col = 0; col < BOARD_SIZE.cols; col++) {
                 const x = startX + col * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2;
                 const y = startY + row * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2;
 
-                const colorIdx = Math.floor(Math.random() * 6);
+                const isStone = stones.has(row * BOARD_SIZE.cols + col);
+                if (isStone) {
+                    const stone: any = this.addBlock(x, y, OBSTACLE);
+                    stone.column = col;
+                    stone.row = row;
+                    stone.isHeld = false;
+                    stone.holdingSlot = -1;
+                    stone.setData('color', OBSTACLE);
+                    this.board[row][col] = stone;
+                    continue;
+                }
+
+                const colorIdx = Math.floor(Math.random() * 7);
                 const block = this.addBlock(
                     BOARD_OFFSET_X + col * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2,
                     BOARD_OFFSET_Y + row * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2,
@@ -196,6 +233,8 @@ export default class GameScene extends Phaser.Scene {
                 const row = Math.floor((pointer.y - boardY) / (CELL_SIZE + CELL_GAP));
 
                 if (row >= 0 && row < BOARD_SIZE.rows && col >= 0 && col < BOARD_SIZE.cols) {
+                    // stones are obstacles — can't move them, remove the empty cell under selection
+                    if (!this.board[row][col] || this.board[row][col].getData('color') === OBSTACLE) return;
                     if (!this.board[row][col].isHeld) {
                         this.selectBlock(this.board[row][col]);
                         this.armHoldTimer();
@@ -269,6 +308,7 @@ export default class GameScene extends Phaser.Scene {
         if (!this.selectedBlock) return;
 
         const holdY = HOLD_Y;
+        const block = this.selectedBlock;
 
         if (this.isHoldingBlock && pointer.y > HOLD_DROP_TOP && pointer.y < HOLD_DROP_BOTTOM) {
             const col = Math.floor((pointer.x - HOLD_START_X) / HOLD_DX);
@@ -277,6 +317,8 @@ export default class GameScene extends Phaser.Scene {
             if (this.holdSlots[slotIdx].block === undefined) {
                 this.moveBlockToHold(this.selectedBlock, slotIdx);
             }
+        } else if (block.getData('color') === OBSTACLE) {
+            // stone dragged away from board — snap back without lifting the stone (it stays put below)
         } else {
             // Animate back to original position
             this.tweens.add({
@@ -456,7 +498,7 @@ export default class GameScene extends Phaser.Scene {
         for (let row = 0; row < BOARD_SIZE.rows; row++) {
             for (let col = 0; col < BOARD_SIZE.cols; col++) {
                 if (!this.board[row][col]) {
-                    const colorIdx = Math.floor(Math.random() * 6);
+                    const colorIdx = Math.floor(Math.random() * 7);
                     const block = this.addBlock(
                                     BOARD_OFFSET_X + col * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2,
                                     -CELL_SIZE,
@@ -755,7 +797,7 @@ export default class GameScene extends Phaser.Scene {
                 const y = BOARD_OFFSET_Y + row * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2;
 
                 const block = this.addBlock(x, y, cell.color);
-                block.setInteractive({ useHandCursor: true });
+                if (cell.color !== OBSTACLE) block.setInteractive({ useHandCursor: true });
                 block.column = cell.column;
                 block.row = cell.row;
                 block.isHeld = cell.isHeld;
@@ -797,7 +839,7 @@ export default class GameScene extends Phaser.Scene {
                 const x = HOLD_START_X + slotIdx * HOLD_DX + CELL_SIZE / 2;
                 const y = HOLD_Y;
                 const block = this.addBlock(x, y, hd.color);
-                block.setInteractive({ useHandCursor: true });
+                if (hd.color !== OBSTACLE) block.setInteractive({ useHandCursor: true });
                 block.column = hd.boardCol;
                 block.row = hd.boardRow;
                 block.isHeld = true;
@@ -851,11 +893,11 @@ export default class GameScene extends Phaser.Scene {
     }
 
     private shuffleBoard() {
-        // Collect all current colors
+        // Collect all current colors (stones are obstacles — never shuffled)
         const colors: number[] = [];
         for (let row = 0; row < BOARD_SIZE.rows; row++) {
             for (let col = 0; col < BOARD_SIZE.cols; col++) {
-                if (this.board[row][col]) {
+                if (this.board[row][col] && this.board[row][col].getData('color') !== OBSTACLE) {
                     colors.push(this.board[row][col].getData('color'));
                 }
             }
@@ -867,11 +909,11 @@ export default class GameScene extends Phaser.Scene {
             [colors[i], colors[j]] = [colors[j], colors[i]];
         }
 
-        // Apply shuffled colors
+        // Apply shuffled colors (stones keep their texture + data)
         let idx = 0;
         for (let row = 0; row < BOARD_SIZE.rows; row++) {
             for (let col = 0; col < BOARD_SIZE.cols; col++) {
-                if (this.board[row][col]) {
+                if (this.board[row][col] && this.board[row][col].getData('color') !== OBSTACLE) {
                     const newColor = colors[idx++];
                     this.board[row][col].setData('color', newColor);
                     this.board[row][col].setTexture(this.colorNames[newColor]);

@@ -30,7 +30,12 @@ export const COLORS = {
     green: '#4CAF50',
     blue: '#2196F3',
     purple: '#7C4DFF',
+    cyan: '#00E5FF',
 };
+
+// Obstacles — 7th tile type: stone. Not draggable, never matches, never refills.
+export const OBSTACLE = -1;
+export const OBSTACLES_PER_LEVEL = [0, 2, 3, 4, 5];
 
 export const LEVELS = [
     { moves: 20, target: 150 },
