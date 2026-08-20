@@ -6,6 +6,7 @@ export interface SaveData {
     score: number;
     movesLeft: number;
     totalUndos: number;
+    blocksMatched?: number;
     board: any[];  // 2D snapshot for restore
     heldSlots: any[];  // [{color, boardCol, boardRow}] for blocks in hold
 }

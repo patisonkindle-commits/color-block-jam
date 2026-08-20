@@ -5,6 +5,7 @@ import {
     HOLD_DROP_BOTTOM, HOLD_INDICATOR_Y, BOOSTER_COUNTS
 } from '../config';
 import { saveGame, loadGame, hasSave, clearSave } from '../systems/save';
+import { SFX } from '../systems/audio';
 
 export default class GameScene extends Phaser.Scene {
     private board: any[][] = [];
@@ -17,6 +18,7 @@ export default class GameScene extends Phaser.Scene {
     private currentLevel: number = 0;
     private levelCleared: boolean = false;
     private holdIndicator!: Phaser.GameObjects.Graphics;
+    private blocksMatched: number = 0;
 
     private undoBtn!: Phaser.GameObjects.Container;
     private slotBtn!: Phaser.GameObjects.Container;
@@ -169,6 +171,7 @@ export default class GameScene extends Phaser.Scene {
                     if (!this.board[row][col].isHeld) {
                         this.selectBlock(this.board[row][col]);
                         this.armHoldTimer();
+                        SFX.click();
                     }
                 }
             }
@@ -350,6 +353,8 @@ export default class GameScene extends Phaser.Scene {
                     // Calculate score
                     const points = bestMatch.count * 10;
                     this.score += points;
+                    this.blocksMatched += bestMatch.count;
+                    SFX.match();
                     this.updateUI();
 
                     // Refill board
@@ -452,6 +457,7 @@ export default class GameScene extends Phaser.Scene {
         if (this.score < target) return;
         this.levelCleared = true;
         this.saveGameProgress();
+        SFX.win();
         this.showLevelClear();
     }
 
@@ -492,6 +498,7 @@ export default class GameScene extends Phaser.Scene {
             score: this.score,
             movesLeft: this.movesLeft,
             totalUndos: this.undoStack.length,
+            blocksMatched: this.blocksMatched,
             board: boardSnapshot,
             heldSlots: heldBlocks,
         });
@@ -500,20 +507,22 @@ export default class GameScene extends Phaser.Scene {
     private showLevelClear() {
         const nextLevel = this.currentLevel + 1 < LEVELS.length;
         const overlay = this.add.rectangle(360, 640, 720, 1280, 0x000000, 0.8);
-        const title = this.add.text(360, 520, 'LEVEL CLEAR!', {
+        const title = this.add.text(360, 520, nextLevel ? 'LEVEL CLEAR!' : 'YOU WIN!', {
             fontSize: '56px',
             fontFamily: 'Arial Black',
             color: '#FFD700',
             fontStyle: 'bold',
         }).setOrigin(0.5);
-        const score = this.add.text(360, 610, `Score: ${this.score} / ${LEVELS[this.currentLevel].target}`, {
+        const score = this.add.text(360, 610, nextLevel
+            ? `Score: ${this.score} / ${LEVELS[this.currentLevel].target}`
+            : `Final Score: ${this.score}  •  Blocks Matched: ${this.blocksMatched}`, {
             fontSize: '30px',
             fontFamily: 'Arial',
             color: '#FFFFFF',
         }).setOrigin(0.5);
         const btn = this.add.container(360, 740);
         const btnBg = this.add.image(0, 0, 'restart');
-        const btnText = this.add.text(0, 0, nextLevel ? 'NEXT LEVEL' : 'YOU WIN!', {
+        const btnText = this.add.text(0, 0, nextLevel ? 'NEXT LEVEL' : 'PLAY AGAIN', {
             fontSize: '28px',
             fontFamily: 'Arial Black',
             color: '#FFFFFF',
@@ -528,15 +537,41 @@ export default class GameScene extends Phaser.Scene {
                 this.movesLeft = LEVELS[this.currentLevel].moves;
                 this.levelCleared = false;
                 this.undoStack = [];
+                this.blocksMatched = 0;
                 this.scene.restart();
             } else {
                 clearSave();
-                this.scene.start('MenuScene');
+                this.currentLevel = 0;
+                this.score = 0;
+                this.movesLeft = LEVELS[0].moves;
+                this.levelCleared = false;
+                this.undoStack = [];
+                this.blocksMatched = 0;
+                this.scene.restart();
             }
         });
+
+        if (!nextLevel) {
+            // Final-level victory — add MENU button under PLAY AGAIN
+            const menuBtn = this.add.container(360, 840);
+            const menuBg = this.add.image(0, 0, 'play');
+            const menuText = this.add.text(0, 0, 'MENU', {
+                fontSize: '28px',
+                fontFamily: 'Arial Black',
+                color: '#FFFFFF',
+                fontStyle: 'bold',
+            }).setOrigin(0.5);
+            menuBtn.add([menuBg, menuText]);
+            menuBtn.setInteractive(new Phaser.Geom.Rectangle(-110, -25, 220, 50), Phaser.Geom.Rectangle.Contains);
+            menuBtn.on('pointerdown', () => {
+                clearSave();
+                this.scene.start('MenuScene');
+            });
+        }
     }
 
     private gameOver() {
+        SFX.fail();
         const overlay = this.add.rectangle(360, 640, 720, 1280, 0x000000, 0.8);
         const title = this.add.text(360, 500, 'GAME OVER', {
             fontSize: '64px',
@@ -757,7 +792,7 @@ export default class GameScene extends Phaser.Scene {
             }).setOrigin(0.5),
         ]);
         this.undoBtn.setInteractive(new Phaser.Geom.Rectangle(-50, -20, 100, 40), Phaser.Geom.Rectangle.Contains);
-        this.undoBtn.on('pointerdown', () => this.useBooster('undo'));
+        this.undoBtn.on('pointerdown', () => { SFX.click(); this.useBooster('undo'); });
 
         // Slot button
         this.slotBtn = this.add.container(360, 700, [
@@ -769,7 +804,7 @@ export default class GameScene extends Phaser.Scene {
             }).setOrigin(0.5),
         ]);
         this.slotBtn.setInteractive(new Phaser.Geom.Rectangle(-50, -20, 100, 40), Phaser.Geom.Rectangle.Contains);
-        this.slotBtn.on('pointerdown', () => this.useBooster('slot'));
+        this.slotBtn.on('pointerdown', () => { SFX.click(); this.useBooster('slot'); });
 
         // Shuffle button
         this.shuffleBtn = this.add.container(620, 700, [
@@ -781,6 +816,6 @@ export default class GameScene extends Phaser.Scene {
             }).setOrigin(0.5),
         ]);
         this.shuffleBtn.setInteractive(new Phaser.Geom.Rectangle(-50, -20, 100, 40), Phaser.Geom.Rectangle.Contains);
-        this.shuffleBtn.on('pointerdown', () => this.useBooster('shuffle'));
+        this.shuffleBtn.on('pointerdown', () => { SFX.click(); this.useBooster('shuffle'); });
     }
 }
