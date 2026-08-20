@@ -22,7 +22,7 @@ export default class GameScene extends Phaser.Scene {
     private slotBtn!: Phaser.GameObjects.Container;
     private shuffleBtn!: Phaser.GameObjects.Container;
 
-    private undoStack: { boardState: any[][]; movesLeft: number; score: number; level: number; slotCount: number }[] = [];
+    private undoStack: { boardState: any[][]; movesLeft: number; score: number; level: number; slotCount: number; heldState: any[] }[] = [];
 
     private colorNames = ['red', 'orange', 'yellow', 'green', 'blue', 'purple'];
     private colorValues = [0xFF6B6B, 0xFF8E53, 0xFFC733, 0x4CAF50, 0x2196F3, 0x7C4DFF];
@@ -579,12 +579,27 @@ export default class GameScene extends Phaser.Scene {
             };
         }));
 
+        // Also snapshot held slots
+        const heldState: any[] = [];
+        for (let i = 0; i < this.holdSlots.length; i++) {
+            const block = this.holdSlots[i].block;
+            if (block) {
+                heldState.push({
+                    color: block.getData('color'),
+                    boardCol: block.column,
+                    boardRow: block.row,
+                    slotIndex: i,
+                });
+            }
+        }
+
         this.undoStack.push({
             boardState,
             movesLeft: this.movesLeft,
             score: this.score,
             level: this.currentLevel,
             slotCount: this.holdSlots.length,
+            heldState,
         });
     }
 
@@ -628,6 +643,26 @@ export default class GameScene extends Phaser.Scene {
         this.score = lastState.score;
         this.currentLevel = lastState.level;
         this.boostersUsed.undo++;  // count the undo as a booster use
+
+        // Restore held slots from undo snapshot
+        for (let i = 0; i < this.holdSlots.length; i++) {
+            this.holdSlots[i].block = undefined;
+        }
+        for (const hd of lastState.heldState) {
+            const slotIdx = hd.slotIndex;
+            if (slotIdx < this.holdSlots.length) {
+                const x = HOLD_START_X + slotIdx * HOLD_DX + CELL_SIZE / 2;
+                const y = HOLD_Y;
+                const block = this.add.image(x, y, this.colorNames[hd.color]);
+                block.setInteractive({ useHandCursor: true });
+                block.column = hd.boardCol;
+                block.row = hd.boardRow;
+                block.isHeld = true;
+                block.holdingSlot = slotIdx;
+                this.holdSlots[slotIdx].block = block;
+            }
+        }
+
         this.updateUI();
     }
 
@@ -715,7 +750,7 @@ export default class GameScene extends Phaser.Scene {
             }).setOrigin(0.5),
         ]);
         this.undoBtn.setInteractive(new Phaser.Geom.Rectangle(-50, -20, 100, 40), Phaser.Geom.Rectangle.Contains);
-        this.undoBtn.on('pointerdown', () => this.undoLastMove());
+        this.undoBtn.on('pointerdown', () => this.useBooster('undo'));
 
         // Slot button
         this.slotBtn = this.add.container(360, 700, [
@@ -727,7 +762,7 @@ export default class GameScene extends Phaser.Scene {
             }).setOrigin(0.5),
         ]);
         this.slotBtn.setInteractive(new Phaser.Geom.Rectangle(-50, -20, 100, 40), Phaser.Geom.Rectangle.Contains);
-        this.slotBtn.on('pointerdown', () => this.addExtraSlot());
+        this.slotBtn.on('pointerdown', () => this.useBooster('slot'));
 
         // Shuffle button
         this.shuffleBtn = this.add.container(620, 700, [
@@ -739,6 +774,6 @@ export default class GameScene extends Phaser.Scene {
             }).setOrigin(0.5),
         ]);
         this.shuffleBtn.setInteractive(new Phaser.Geom.Rectangle(-50, -20, 100, 40), Phaser.Geom.Rectangle.Contains);
-        this.shuffleBtn.on('pointerdown', () => this.shuffleBoard());
+        this.shuffleBtn.on('pointerdown', () => this.useBooster('shuffle'));
     }
 }
