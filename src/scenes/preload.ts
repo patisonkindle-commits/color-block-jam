@@ -1,6 +1,25 @@
 /// <reference types="vite/client" />
 import Phaser from 'phaser';
 
+import redUrl from '../../assets/sprites/blocks/red.png';
+import yellowUrl from '../../assets/sprites/blocks/yellow.png';
+import greenUrl from '../../assets/sprites/blocks/green.png';
+import blueUrl from '../../assets/sprites/blocks/blue.png';
+import purpleUrl from '../../assets/sprites/blocks/purple.png';
+import btnUrl from '../../assets/sprites/ui/btn.png';
+import btnAltUrl from '../../assets/sprites/ui/btn_alt.png';
+
+// Kenney puzzle pack (CC0). No orange square in pack — orange stays procedural.
+const ASSETS: [string, string][] = [
+    ['red', redUrl],
+    ['yellow', yellowUrl],
+    ['green', greenUrl],
+    ['blue', blueUrl],
+    ['purple', purpleUrl],
+    ['restart', btnUrl],
+    ['play', btnAltUrl],
+];
+
 export default class PreloadScene extends Phaser.Scene {
     private progressBox!: Phaser.GameObjects.Rectangle;
     private progressBar!: Phaser.GameObjects.Rectangle;
@@ -35,24 +54,10 @@ export default class PreloadScene extends Phaser.Scene {
             this.loadingText.setText('Done!');
         });
 
-        // Try to load real assets if present; graceful skip when dirs are empty
-        // (all assets are procedural textures for now — BootScene generates them)
-        this.loadExistingAssets();
+        ASSETS.forEach(([key, url]) => this.load.image(key, url));
     }
 
     create() {
         this.scene.start('MenuScene');
-    }
-
-    private loadExistingAssets() {
-        // Vite copies e.g. `assets/sprites/x/y.png` to `assets/...` verbatim
-        // (publicDir). Probe each via glob-import so build-time entry exists;
-        // missing files simply don't match and are skipped silently.
-        const images = import.meta.glob('/assets/sprites/**/*.{png,jpg,jpeg,webp}');
-        Object.entries(images).forEach(([path]) => {
-            const key = path.replace('/assets/', '').replace(/\.[^.]+$/, '')
-                .replace(/[\/\\]/g, '-');
-            this.load.image(key, path);
-        });
     }
 }

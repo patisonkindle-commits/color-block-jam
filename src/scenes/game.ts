@@ -58,7 +58,7 @@ export default class GameScene extends Phaser.Scene {
                     }
                     const x = BOARD_OFFSET_X + col * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2;
                     const y = BOARD_OFFSET_Y + row * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2;
-                    const block = this.add.image(x, y, this.colorNames[cell.color]);
+                    const block = this.addBlock(x, y, cell.color);
                     block.setInteractive({ useHandCursor: true });
                     block.column = cell.col;
                     block.row = cell.row;
@@ -74,7 +74,7 @@ export default class GameScene extends Phaser.Scene {
                 const hd = save.heldSlots[i];
                 const x = HOLD_START_X + i * HOLD_DX + CELL_SIZE / 2;
                 const y = HOLD_Y;
-                const block = this.add.image(x, y, this.colorNames[hd.color]);
+                const block = this.addBlock(x, y, hd.color);
                 block.setInteractive({ useHandCursor: true });
                 block.column = hd.boardCol;
                 block.row = hd.boardRow;
@@ -102,6 +102,14 @@ export default class GameScene extends Phaser.Scene {
         this.add.rectangle(0, 0, 720, 1280, 0x1a1a2e).setOrigin(0, 0);
     }
 
+    // Create a block image at (x,y) with real-texture scaling
+    private addBlock(x: number, y: number, colorIdx: number) {
+        const key = this.colorNames[colorIdx];
+        const block = this.add.image(x, y, key);
+        block.setDisplaySize(CELL_SIZE, CELL_SIZE);
+        return block;
+    }
+
     private createBoard() {
         this.board = [];
         const startX = BOARD_OFFSET_X;
@@ -114,7 +122,11 @@ export default class GameScene extends Phaser.Scene {
                 const y = startY + row * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2;
 
                 const colorIdx = Math.floor(Math.random() * 6);
-                const block = this.add.image(x, y, this.colorNames[colorIdx]);
+                const block = this.addBlock(
+                    BOARD_OFFSET_X + col * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2,
+                    BOARD_OFFSET_Y + row * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2,
+                    colorIdx
+                );
                 block.setInteractive({ useHandCursor: true });
                 block.column = col;
                 block.row = row;
@@ -412,26 +424,26 @@ export default class GameScene extends Phaser.Scene {
             for (let col = 0; col < BOARD_SIZE.cols; col++) {
                 if (!this.board[row][col]) {
                     const colorIdx = Math.floor(Math.random() * 6);
-                    const newBlock = this.add.image(
-                        BOARD_OFFSET_X + col * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2,
-                        -CELL_SIZE,
-                        this.colorNames[colorIdx]
-                    );
-                    newBlock.setInteractive({ useHandCursor: true });
-                    newBlock.column = col;
-                    newBlock.row = row;
-                    newBlock.isHeld = false;
-                    newBlock.holdingSlot = -1;
-                    newBlock.setData('color', colorIdx);
+                    const block = this.addBlock(
+                                    BOARD_OFFSET_X + col * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2,
+                                    -CELL_SIZE,
+                                    colorIdx
+                                );
+                    block.setInteractive({ useHandCursor: true });
+                    block.column = col;
+                    block.row = row;
+                    block.isHeld = false;
+                    block.holdingSlot = -1;
+                    block.setData('color', colorIdx);
 
                     this.tweens.add({
-                        targets: newBlock,
+                        targets: block,
                         y: BOARD_OFFSET_Y + row * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2,
                         duration: 400,
                         ease: 'Cubic.easeOut',
                     });
 
-                    this.board[row][col] = newBlock;
+                    this.board[row][col] = block;
                 }
             }
         }
@@ -525,7 +537,7 @@ export default class GameScene extends Phaser.Scene {
         const btnText = this.add.text(0, 0, nextLevel ? 'NEXT LEVEL' : 'PLAY AGAIN', {
             fontSize: '28px',
             fontFamily: 'Arial Black',
-            color: '#FFFFFF',
+            color: '#333333',
             fontStyle: 'bold',
         }).setOrigin(0.5);
         btn.add([btnBg, btnText]);
@@ -558,7 +570,7 @@ export default class GameScene extends Phaser.Scene {
             const menuText = this.add.text(0, 0, 'MENU', {
                 fontSize: '28px',
                 fontFamily: 'Arial Black',
-                color: '#FFFFFF',
+                color: '#333333',
                 fontStyle: 'bold',
             }).setOrigin(0.5);
             menuBtn.add([menuBg, menuText]);
@@ -591,7 +603,7 @@ export default class GameScene extends Phaser.Scene {
         const restartText = this.add.text(0, 0, 'RESTART', {
             fontSize: '28px',
             fontFamily: 'Arial Black',
-            color: '#FFFFFF',
+            color: '#333333',
             fontStyle: 'bold',
         }).setOrigin(0.5);
         restartBtn.add([restartBg, restartText]);
@@ -670,7 +682,7 @@ export default class GameScene extends Phaser.Scene {
                 const x = BOARD_OFFSET_X + col * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2;
                 const y = BOARD_OFFSET_Y + row * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2;
 
-                const block = this.add.image(x, y, this.colorNames[cell.color]);
+                const block = this.addBlock(x, y, cell.color);
                 block.setInteractive({ useHandCursor: true });
                 block.column = cell.column;
                 block.row = cell.row;
@@ -695,7 +707,7 @@ export default class GameScene extends Phaser.Scene {
             if (slotIdx < this.holdSlots.length) {
                 const x = HOLD_START_X + slotIdx * HOLD_DX + CELL_SIZE / 2;
                 const y = HOLD_Y;
-                const block = this.add.image(x, y, this.colorNames[hd.color]);
+                const block = this.addBlock(x, y, hd.color);
                 block.setInteractive({ useHandCursor: true });
                 block.column = hd.boardCol;
                 block.row = hd.boardRow;
@@ -784,11 +796,11 @@ export default class GameScene extends Phaser.Scene {
     private setupBoosterButtons() {
         // Undo button
         this.undoBtn = this.add.container(100, 700, [
-            this.add.image(0, 0, 'restart'), // reuse restart texture
+            this.add.image(0, 0, 'restart'), // Kenney silver button asset
             this.add.text(0, 0, 'UNDO', {
                 fontSize: '16px',
                 fontFamily: 'Arial Black',
-                color: '#FFFFFF',
+                color: '#333333',
             }).setOrigin(0.5),
         ]);
         this.undoBtn.setInteractive(new Phaser.Geom.Rectangle(-50, -20, 100, 40), Phaser.Geom.Rectangle.Contains);
@@ -800,7 +812,7 @@ export default class GameScene extends Phaser.Scene {
             this.add.text(0, 0, '+1 SLOT', {
                 fontSize: '16px',
                 fontFamily: 'Arial Black',
-                color: '#FFFFFF',
+                color: '#333333',
             }).setOrigin(0.5),
         ]);
         this.slotBtn.setInteractive(new Phaser.Geom.Rectangle(-50, -20, 100, 40), Phaser.Geom.Rectangle.Contains);
@@ -812,7 +824,7 @@ export default class GameScene extends Phaser.Scene {
             this.add.text(0, 0, 'SHUFFLE', {
                 fontSize: '16px',
                 fontFamily: 'Arial Black',
-                color: '#FFFFFF',
+                color: '#333333',
             }).setOrigin(0.5),
         ]);
         this.shuffleBtn.setInteractive(new Phaser.Geom.Rectangle(-50, -20, 100, 40), Phaser.Geom.Rectangle.Contains);

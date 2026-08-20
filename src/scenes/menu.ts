@@ -38,7 +38,7 @@ export default class MenuScene extends Phaser.Scene {
         const playText = this.add.text(0, 0, 'PLAY', {
             fontSize: '32px',
             fontFamily: 'Arial Black, Arial, sans-serif',
-            color: '#FFFFFF',
+            color: '#333333',
             fontStyle: 'bold',
         }).setOrigin(0.5);
         playBtn.add([playBg, playText]);
@@ -55,7 +55,7 @@ export default class MenuScene extends Phaser.Scene {
             this.continueText = this.add.text(0, 0, 'CONTINUE', {
                 fontSize: '28px',
                 fontFamily: 'Arial Black, Arial, sans-serif',
-                color: '#FFD700',
+                color: '#333333',
                 fontStyle: 'bold',
             }).setOrigin(0.5);
             this.continueBtn.add([cBg, this.continueText]);
