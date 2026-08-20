@@ -6,6 +6,10 @@ export default class MenuScene extends Phaser.Scene {
     private continueBtn!: Phaser.GameObjects.Container;
     private continueText!: Phaser.GameObjects.Text;
 
+    constructor() {
+        super({ key: 'MenuScene' });
+    }
+
     create() {
         this.add.rectangle(0, 0, 720, 1280, 0x1a1a2e).setOrigin(0, 0);
         
