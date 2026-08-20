@@ -13,7 +13,9 @@
 ## Current Context (verified 2026-08-19, commit 45c5dcf + gh-pages 570c9a0)
 
 - **Working:** 7 hold slots (index 0–6 from holdStartX), level system (LEVELS[0] = 20 moves/500 pts → LEVELS[4] = 28/1300), checkVictory() → "LEVEL CLEAR!" overlay → NEXT LEVEL → Level 2 (22 moves, score reset), 0 console errors, bundle live D9DIliIa.
-- **Deploy pitfall (learned):** dist/index.html is a COMMITTED build artifact with baked base path `/color-block-jam/`. NEVER sed-strip `/color-block-jam/` out of dist/index.html (broke mobile base path twice, fixed by 1a3d887/570c9a0). Deploy = commit dist/ to main, copy to gh-pages branch, push both.
+- **Deploy pitfall (learned 2026-08-20):** gh-pages root `index.html` must be overwritten with dist/index.html each deploy — stale root HTML pointed at deleted old bundle, killing live site.
+- **DONE (Round 3, 2026-08-20):** SFX (F) — `src/systems/audio.ts` WebAudio synth (click/match/win/fail, zero assets, mute flag `cbj_muted`). Victory stats (C) — final level → "YOU WIN!" + Final Score + Blocks Matched + PLAY AGAIN (restart L1) + MENU buttons; `blocksMatched` tracked & persisted. Deployed (gh-pages 515e970, main 5c98a95), verified live 200.
+- **REMAINING:** AdMob (D) — code-only until Android SDK; asset download optional; mute UI toggle.
 - **Assets dirs exist but EMPTY:** assets/sprites/{blocks,ui,backgrounds,effects}/, assets/sounds/, assets/fonts/ — all zero files. ASSET_DOWNLOAD_GUIDE.md lists CC0 sources (Kenney, Mixkit) but nothing downloaded yet.
 - **Testing:** playwright in `~/.npm/_npx/<hash>/node_modules`, chromium-1223 headless + swiftshader flags (see skill reference). Serve via /tmp/cbj-serve/color-block-jam/ from parent dir to resolve base path. State via `window.__game.scene.getScene('GameScene')`.
 - **No real audio assets, no real sprite assets.** Procedural textures (BootScene createBlockTexture) are the current art.
