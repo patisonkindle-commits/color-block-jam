@@ -1,10 +1,13 @@
 import Phaser from 'phaser';
 
 import { hasSave, loadGame } from '../systems/save';
+import { SFX } from '../systems/audio';
 
 export default class MenuScene extends Phaser.Scene {
     private continueBtn!: Phaser.GameObjects.Container;
     private continueText!: Phaser.GameObjects.Text;
+    private muteBtn!: Phaser.GameObjects.Container;
+    private muteText!: Phaser.GameObjects.Text;
 
     constructor() {
         super({ key: 'MenuScene' });
@@ -28,6 +31,19 @@ export default class MenuScene extends Phaser.Scene {
             color: '#AAAAAA',
             align: 'center',
         }).setOrigin(0.5);
+
+        // Sound toggle (top-right corner)
+        this.muteBtn = this.add.container(660, 90);
+        const muteBg = this.add.rectangle(0, 0, 80, 80, 0x333333, 0.7).setStrokeStyle(2, 0xFFFFFF, 0.3);
+        this.muteText = this.add.text(0, 0, SFX.isMuted() ? '🔇' : '🔊', {
+            fontSize: '40px',
+        }).setOrigin(0.5);
+        this.muteBtn.add([muteBg, this.muteText]);
+        this.muteBtn.setInteractive(new Phaser.Geom.Rectangle(-40, -40, 80, 80), Phaser.Geom.Rectangle.Contains);
+        this.muteBtn.on('pointerdown', () => {
+            const muted = SFX.toggle();
+            this.muteText.setText(muted ? '🔇' : '🔊');
+        });
 
         const has = hasSave();
         const save = has ? loadGame() : null;

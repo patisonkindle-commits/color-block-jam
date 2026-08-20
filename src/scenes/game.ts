@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import {
     COLORS, BOARD_SIZE, CELL_SIZE, CELL_GAP, BOARD_OFFSET_X, BOARD_OFFSET_Y,
     LEVELS, HOLD_SLOTS, HOLD_DX, HOLD_START_X, HOLD_Y, HOLD_DROP_TOP,
-    HOLD_DROP_BOTTOM, HOLD_INDICATOR_Y, BOOSTER_COUNTS
+    HOLD_DROP_BOTTOM, HOLD_INDICATOR_Y, BOOSTER_COUNTS, BOOSTER_Y
 } from '../config';
 import { saveGame, loadGame, hasSave, clearSave } from '../systems/save';
 import { SFX } from '../systems/audio';
@@ -796,7 +796,7 @@ export default class GameScene extends Phaser.Scene {
 
     private setupBoosterButtons() {
         // Undo button
-        this.undoBtn = this.add.container(100, 700, [
+        this.undoBtn = this.add.container(100, BOOSTER_Y, [
             this.add.image(0, 0, 'restart'), // Kenney silver button asset
             this.add.text(0, 0, 'UNDO', {
                 fontSize: '16px',
@@ -808,7 +808,7 @@ export default class GameScene extends Phaser.Scene {
         this.undoBtn.on('pointerdown', () => { SFX.click(); this.useBooster('undo'); });
 
         // Slot button
-        this.slotBtn = this.add.container(360, 700, [
+        this.slotBtn = this.add.container(360, BOOSTER_Y, [
             this.add.image(0, 0, 'restart'),
             this.add.text(0, 0, '+1 SLOT', {
                 fontSize: '16px',
@@ -820,7 +820,7 @@ export default class GameScene extends Phaser.Scene {
         this.slotBtn.on('pointerdown', () => { SFX.click(); this.useBooster('slot'); });
 
         // Shuffle button
-        this.shuffleBtn = this.add.container(620, 700, [
+        this.shuffleBtn = this.add.container(620, BOOSTER_Y, [
             this.add.image(0, 0, 'restart'),
             this.add.text(0, 0, 'SHUFFLE', {
                 fontSize: '16px',

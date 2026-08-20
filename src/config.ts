@@ -59,5 +59,8 @@ export const HOLD_DROP_TOP = HOLD_Y - 50;  // drag-release zone bounds
 export const HOLD_DROP_BOTTOM = HOLD_Y + 100;
 export const HOLD_INDICATOR_Y = HOLD_Y + 50;
 
+// Booster buttons row — BELOW hold slots (was y=700, overlapping the board)
+export const BOOSTER_Y = HOLD_DROP_BOTTOM + 50;
+
 // Booster caps per level — 1 use each
 export const BOOSTER_COUNTS = { undo: 1, slot: 1, shuffle: 1 };
