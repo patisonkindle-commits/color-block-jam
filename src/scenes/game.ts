@@ -45,6 +45,7 @@ export default class GameScene extends Phaser.Scene {
             this.score = save.score;
             this.currentLevel = save.level;
             this.undoStack = [];
+            this.createHoldSlots();
 
             // Build board from snapshot
             this.board = [];
