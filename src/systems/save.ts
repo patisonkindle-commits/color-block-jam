@@ -12,6 +12,29 @@ export interface SaveData {
 }
 
 const KEY = 'cbj_save_v1';
+const BEST_KEY = 'cbj_best_v1';
+
+export function getBestScore(): number {
+    try {
+        const raw = localStorage.getItem(BEST_KEY);
+        const n = raw ? parseInt(raw, 10) : 0;
+        return Number.isFinite(n) ? n : 0;
+    } catch {
+        return 0;
+    }
+}
+
+/** Record score if it beats the stored best. Returns true when a new best was set. */
+export function setBestScore(score: number): boolean {
+    if (score <= getBestScore()) return false;
+    try {
+        localStorage.setItem(BEST_KEY, String(score));
+        return true;
+    } catch (e) {
+        console.warn('best score save failed', e);
+        return false;
+    }
+}
 
 export function saveGame(data: SaveData): void {
     try {

@@ -5,7 +5,7 @@ import {
     HOLD_DROP_BOTTOM, HOLD_INDICATOR_Y, BOOSTER_COUNTS, BOOSTER_Y, COMBO_WINDOW, COMBO_MULT,
     OBSTACLE, OBSTACLES_PER_LEVEL
 } from '../config';
-import { saveGame, loadGame, hasSave, clearSave } from '../systems/save';
+import { saveGame, loadGame, hasSave, clearSave, setBestScore } from '../systems/save';
 import { SFX } from '../systems/audio';
 
 export default class GameScene extends Phaser.Scene {
@@ -633,12 +633,21 @@ export default class GameScene extends Phaser.Scene {
     private showLevelClear() {
         const nextLevel = this.currentLevel + 1 < LEVELS.length;
         const overlay = this.add.rectangle(360, 640, 720, 1280, 0x000000, 0.8);
+        const isNewBest = setBestScore(this.score);
         const title = this.add.text(360, 520, nextLevel ? 'LEVEL CLEAR!' : 'YOU WIN!', {
             fontSize: '56px',
             fontFamily: 'Arial Black',
             color: '#FFD700',
             fontStyle: 'bold',
         }).setOrigin(0.5);
+        if (isNewBest) {
+            this.add.text(360, 570, 'NEW BEST SCORE!', {
+                fontSize: '24px',
+                fontFamily: 'Arial Black',
+                color: '#00E5FF',
+                fontStyle: 'bold',
+            }).setOrigin(0.5);
+        }
         const score = this.add.text(360, 610, nextLevel
             ? `Score: ${this.score} / ${LEVELS[this.currentLevel].target}`
             : `Final Score: ${this.score}  •  Blocks Matched: ${this.blocksMatched}`, {
@@ -698,6 +707,7 @@ export default class GameScene extends Phaser.Scene {
 
     private gameOver() {
         SFX.fail();
+        setBestScore(this.score);
         const overlay = this.add.rectangle(360, 640, 720, 1280, 0x000000, 0.8);
         const title = this.add.text(360, 500, 'GAME OVER', {
             fontSize: '64px',

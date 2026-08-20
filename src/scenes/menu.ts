@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 
-import { hasSave, loadGame } from '../systems/save';
+import { hasSave, loadGame, getBestScore } from '../systems/save';
 import { SFX } from '../systems/audio';
 
 export default class MenuScene extends Phaser.Scene {
@@ -30,6 +30,17 @@ export default class MenuScene extends Phaser.Scene {
             fontFamily: 'Arial, sans-serif',
             color: '#AAAAAA',
             align: 'center',
+        }).setOrigin(0.5);
+
+        // Best score (persists across sessions)
+        const best = getBestScore();
+        this.add.text(360, 480, best > 0 ? `BEST SCORE: ${best}` : 'NO BEST SCORE YET', {
+            fontSize: '22px',
+            fontFamily: 'Arial Black, Arial, sans-serif',
+            color: '#FFD700',
+            align: 'center',
+            stroke: '#000000',
+            strokeThickness: 3,
         }).setOrigin(0.5);
 
         // Sound toggle (top-right corner)
