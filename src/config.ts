@@ -60,6 +60,10 @@ export const HOLD_DROP_TOP = HOLD_Y - 50;  // drag-release zone bounds
 export const HOLD_DROP_BOTTOM = HOLD_Y + 100;
 export const HOLD_INDICATOR_Y = HOLD_Y + 50;
 
+// Combo system — consecutive matches within this many moves chain a multiplier
+export const COMBO_WINDOW = 3;
+export const COMBO_MULT = [1, 1.5, 2];
+
 // Booster buttons row — BELOW hold slots (was y=700, overlapping the board)
 export const BOOSTER_Y = HOLD_DROP_BOTTOM + 50;
 

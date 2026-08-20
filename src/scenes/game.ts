@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import {
     COLORS, BOARD_SIZE, CELL_SIZE, CELL_GAP, BOARD_OFFSET_X, BOARD_OFFSET_Y,
     LEVELS, MAX_HOLD_SLOTS, HOLD_SLOTS, HOLD_DX, HOLD_START_X, HOLD_Y, HOLD_DROP_TOP,
-    HOLD_DROP_BOTTOM, HOLD_INDICATOR_Y, BOOSTER_COUNTS, BOOSTER_Y
+    HOLD_DROP_BOTTOM, HOLD_INDICATOR_Y, BOOSTER_COUNTS, BOOSTER_Y, COMBO_WINDOW, COMBO_MULT
 } from '../config';
 import { saveGame, loadGame, hasSave, clearSave } from '../systems/save';
 import { SFX } from '../systems/audio';
@@ -19,6 +19,10 @@ export default class GameScene extends Phaser.Scene {
     private levelCleared: boolean = false;
     private holdIndicator!: Phaser.GameObjects.Graphics;
     private blocksMatched: number = 0;
+    private comboLevel: number = 0;
+    private lastMatchMove: number = -1;
+    private maxCombo: number = 0;
+    private popups: { text: Phaser.GameObjects.Text; x: number; y: number; vy: number; life: number; maxLife: number }[] = [];
 
     private undoBtn!: Phaser.GameObjects.Container;
     private slotBtn!: Phaser.GameObjects.Container;
@@ -43,6 +47,11 @@ export default class GameScene extends Phaser.Scene {
         // per-level state reset — scene.restart() reuses this instance
         this.boostersUsed = { undo: 0, slot: 0, shuffle: 0 };
         this.levelCleared = false;
+        this.comboLevel = 0;
+        this.lastMatchMove = -1;
+        this.maxCombo = 0;
+        this.popups.forEach(p => p.text.destroy());
+        this.popups = [];
 
         const save = loadGame();
         if (save && save.level <= this.currentLevel) {
@@ -307,6 +316,11 @@ export default class GameScene extends Phaser.Scene {
         // Remove from board
         this.board[block.row][block.column] = null;
 
+        // Combo decay: if last match was too many moves ago, reset chain
+        if (this.lastMatchMove >= 0 && this.lastMatchMove - this.movesLeft >= COMBO_WINDOW) {
+            this.comboLevel = 0;
+        }
+
         this.tweens.add({
             targets: block,
             x: targetX,
@@ -370,10 +384,22 @@ export default class GameScene extends Phaser.Scene {
                     });
 
                     // Calculate score — stepped: 3-match=30, 4=60, 5+=120
-                    const points = bestMatch.count >= 5 ? 120 : bestMatch.count * 10 + (bestMatch.count - 3) * 20;
+                    const base = bestMatch.count >= 5 ? 120 : bestMatch.count * 10 + (bestMatch.count - 3) * 20;
+                    // Combo chain: matches within COMBO_WINDOW moves multiply ×1.5 → ×2
+                    if (this.lastMatchMove >= 0 && this.lastMatchMove - this.movesLeft < COMBO_WINDOW) {
+                        this.comboLevel = Math.min(this.comboLevel + 1, COMBO_MULT.length - 1);
+                    } else {
+                        this.comboLevel = 0;
+                    }
+                    this.lastMatchMove = this.movesLeft;
+                    this.maxCombo = Math.max(this.maxCombo, this.comboLevel);
+                    const mult = COMBO_MULT[this.comboLevel];
+                    const points = Math.round(base * mult);
                     this.score += points;
                     this.blocksMatched += bestMatch.count;
-                    SFX.match();
+                    SFX.match(this.comboLevel + 1);
+                    this.spawnPopup(`+${points}${mult > 1 ? ` ×${mult}` : ''}`, this.holdSlots[bestMatch.start].x, HOLD_Y - 60, mult > 1 ? '#FFD700' : '#FFFFFF');
+                    if (bestMatch.count >= 4 || mult > 1) this.cameras.main.shake(150, 0.004);
                     this.updateUI();
 
                     // Refill board
@@ -456,11 +482,46 @@ export default class GameScene extends Phaser.Scene {
         }
     }
 
+    private spawnPopup(text: string, x: number, y: number, color = '#FFFFFF') {
+        if (this.popups.length > 10) { const old = this.popups.shift(); if (old) old.text.destroy(); }
+        const t = this.add.text(x, y + 20, text, {
+            fontSize: '30px',
+            fontFamily: 'Arial Black',
+            color,
+            stroke: '#000000',
+            strokeThickness: 4,
+        }).setOrigin(0.5).setDepth(990);
+        this.popups.push({ text: t, x, y: y + 20, vy: -45, life: 0.9, maxLife: 0.9 });
+    }
+
+    private updatePopups(dt: number) {
+        for (let i = this.popups.length - 1; i >= 0; i--) {
+            const p = this.popups[i];
+            p.y += p.vy * dt;
+            p.life -= dt;
+            p.text.setY(p.y);
+            p.text.setAlpha(Math.max(0, p.life / p.maxLife));
+            p.text.setFontSize(`${30 + (0.9 - p.life) * 20}px`);
+            if (p.life <= 0) {
+                p.text.destroy();
+                this.popups.splice(i, 1);
+            }
+        }
+    }
+
+    update(_time: number, delta: number) {
+        const dt = Math.min(delta / 1000, 0.05);
+        this.updatePopups(dt);
+    }
+
     private updateUI() {
         this.registry.set('hud', {
             score: this.score,
             moves: this.movesLeft,
             level: this.currentLevel,
+            maxCombo: this.maxCombo,
+            combo: this.comboLevel,
+            target: LEVELS[this.currentLevel].target,
             undosLeft: 3 - this.undoStack.length,  // max 3 undos per level
             boostersUsed: this.boostersUsed,
         });
