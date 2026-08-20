@@ -33,11 +33,11 @@ export const COLORS = {
 };
 
 export const LEVELS = [
-    { moves: 20, target: 500 },
-    { moves: 22, target: 700 },
-    { moves: 24, target: 900 },
-    { moves: 26, target: 1100 },
-    { moves: 28, target: 1300 },
+    { moves: 20, target: 150 },
+    { moves: 22, target: 250 },
+    { moves: 24, target: 400 },
+    { moves: 26, target: 600 },
+    { moves: 28, target: 850 },
 ];
 
 export const BOARD_SIZE = {
@@ -51,9 +51,10 @@ export const BOARD_OFFSET_X = 90;
 export const BOARD_OFFSET_Y = 200;
 
 // Hold slots layout (single source of truth — was duplicated 5x in GameScene)
-export const HOLD_SLOTS = 7;
+export const MAX_HOLD_SLOTS = 8;     // 8th slot unlockable via +1 SLOT booster
+export const HOLD_SLOTS = 7;         // starting slots (7th game-booster)
 export const HOLD_DX = CELL_SIZE + 10; // slot pitch
-export const HOLD_START_X = (720 - HOLD_SLOTS * HOLD_DX) / 2;
+export const HOLD_START_X = (720 - MAX_HOLD_SLOTS * HOLD_DX) / 2; // space for 8 slots — slot 8 never clips edge
 export const HOLD_Y = BOARD_OFFSET_Y + BOARD_SIZE.rows * (CELL_SIZE + CELL_GAP) + 50;
 export const HOLD_DROP_TOP = HOLD_Y - 50;  // drag-release zone bounds
 export const HOLD_DROP_BOTTOM = HOLD_Y + 100;
