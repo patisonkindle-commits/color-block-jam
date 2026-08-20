@@ -73,4 +73,4 @@ export const COMBO_MULT = [1, 1.5, 2];
 export const BOOSTER_Y = HOLD_DROP_BOTTOM + 50;
 
 // Booster caps per level — 1 use each
-export const BOOSTER_COUNTS = { undo: 1, slot: 1, shuffle: 1 };
+export const BOOSTER_COUNTS = { undo: 1, slot: 1, shuffle: 1, swap: 1, bomb: 1 };

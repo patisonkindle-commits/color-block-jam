@@ -31,8 +31,16 @@ export default class GameScene extends Phaser.Scene {
     private undoCountText!: Phaser.GameObjects.Text;
     private slotCountText!: Phaser.GameObjects.Text;
     private shuffleCountText!: Phaser.GameObjects.Text;
+    private swapBtn!: Phaser.GameObjects.Container;
+    private swapCountText!: Phaser.GameObjects.Text;
+    private bombBtn!: Phaser.GameObjects.Container;
+    private bombCountText!: Phaser.GameObjects.Text;
 
     private undoStack: { boardState: any[][]; movesLeft: number; score: number; level: number; slotCount: number; heldState: any[] }[] = [];
+
+    // Booster target modes — SWAP waits for 2 board blocks, BOMB waits for 1
+    private boosterMode: 'swap' | 'bomb' | null = null;
+    private swapFirst: { row: number; col: number; block: any } | null = null;
 
     private colorNames = ['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'cyan', 'stone'];
     private colorValues = [0xFF6B6B, 0xFF8E53, 0xFFC733, 0x4CAF50, 0x2196F3, 0x7C4DFF, 0x00E5FF, 0x8A8A8A];
@@ -46,7 +54,9 @@ export default class GameScene extends Phaser.Scene {
             this.scene.launch('UIScene');
         }
         // per-level state reset — scene.restart() reuses this instance
-        this.boostersUsed = { undo: 0, slot: 0, shuffle: 0 };
+        this.boostersUsed = { undo: 0, slot: 0, shuffle: 0, swap: 0, bomb: 0 };
+        this.boosterMode = null;
+        this.swapFirst = null;
         this.levelCleared = false;
         this.comboLevel = 0;
         this.lastMatchMove = -1;
@@ -224,6 +234,7 @@ export default class GameScene extends Phaser.Scene {
     private setupInputHandlers() {
         // Block click/hold detection
         this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+            if (this.boosterMode) { this.handleBoosterTap(pointer); return; }
             const boardY = BOARD_OFFSET_Y;
             const boardHeight = BOARD_SIZE.rows * (CELL_SIZE + CELL_GAP) + CELL_SIZE;
 
@@ -571,6 +582,8 @@ export default class GameScene extends Phaser.Scene {
         if (this.undoCountText) this.undoCountText.setText(`${BOOSTER_COUNTS.undo - this.boostersUsed.undo}×`);
         if (this.slotCountText) this.slotCountText.setText(`${BOOSTER_COUNTS.slot - this.boostersUsed.slot}×`);
         if (this.shuffleCountText) this.shuffleCountText.setText(`${BOOSTER_COUNTS.shuffle - this.boostersUsed.shuffle}×`);
+        if (this.swapCountText) this.swapCountText.setText(`${BOOSTER_COUNTS.swap - this.boostersUsed.swap}×`);
+        if (this.bombCountText) this.bombCountText.setText(`${BOOSTER_COUNTS.bomb - this.boostersUsed.bomb}×`);
 
         if (this.movesLeft <= 0) {
             this.gameOver();
@@ -861,7 +874,7 @@ export default class GameScene extends Phaser.Scene {
         this.updateUI();
     }
 
-    private boostersUsed = { undo: 0, slot: 0, shuffle: 0 };
+    private boostersUsed = { undo: 0, slot: 0, shuffle: 0, swap: 0, bomb: 0 };
 
     private useBooster(action: string) {
         if (this.boostersUsed[action as keyof typeof this.boostersUsed] >= BOOSTER_COUNTS[action as keyof typeof BOOSTER_COUNTS]) {
@@ -870,6 +883,8 @@ export default class GameScene extends Phaser.Scene {
         // No-op guards — don't consume the booster on a useless press
         if (action === 'undo' && this.undoStack.length === 0) return;
         if (action === 'slot' && this.holdSlots.length >= MAX_HOLD_SLOTS) return;
+        if (action === 'swap' && this.board.flat().filter((b: any) => b).length < 2) return;
+        if (action === 'bomb' && this.board.flat().filter((b: any) => b && b.getData('color') !== OBSTACLE).length === 0) return;
         this.boostersUsed[action as keyof typeof this.boostersUsed]++;
         switch (action) {
             case 'undo':
@@ -880,6 +895,13 @@ export default class GameScene extends Phaser.Scene {
                 break;
             case 'shuffle':
                 this.shuffleBoard();
+                break;
+            case 'swap':
+                this.boosterMode = 'swap';
+                this.swapFirst = null;
+                break;
+            case 'bomb':
+                this.boosterMode = 'bomb';
                 break;
         }
         this.updateUI();
@@ -939,6 +961,74 @@ export default class GameScene extends Phaser.Scene {
         });
     }
 
+    private handleBoosterTap(pointer: Phaser.Input.Pointer) {
+        const boardY = BOARD_OFFSET_Y;
+        const boardHeight = BOARD_SIZE.rows * (CELL_SIZE + CELL_GAP) + CELL_SIZE;
+        if (pointer.y < boardY || pointer.y > boardY + boardHeight) return; // tap outside board — keep mode armed
+        const col = Math.floor((pointer.x - BOARD_OFFSET_X) / (CELL_SIZE + CELL_GAP));
+        const row = Math.floor((pointer.y - boardY) / (CELL_SIZE + CELL_GAP));
+        if (row < 0 || row >= BOARD_SIZE.rows || col < 0 || col >= BOARD_SIZE.cols) return;
+        const cell = this.board[row][col];
+        if (!cell || cell.getData('color') === OBSTACLE) return; // stones untouchable
+
+        if (this.boosterMode === 'bomb') {
+            this.boosterMode = null;
+            this.bombCell(row, col);
+        } else if (this.boosterMode === 'swap') {
+            if (!this.swapFirst) {
+                this.swapFirst = { row, col, block: cell };
+                cell.setTintFill(0xFFFFFF); // highlight first pick
+                return;
+            }
+            if (this.swapFirst.row === row && this.swapFirst.col === col) return; // same cell — keep waiting
+            this.swapFirst.block.clearTint();
+            this.boosterMode = null;
+            this.swapBlocks(this.swapFirst, { row, col, block: cell });
+            this.swapFirst = null;
+        }
+    }
+
+    private swapBlocks(a: { row: number; col: number; block: any }, b: { row: number; col: number; block: any }) {
+        // swap colors + textures; positions stay (blocks don't move)
+        const aColor = a.block.getData('color');
+        const bColor = b.block.getData('color');
+        a.block.setData('color', bColor);
+        a.block.setTexture(this.colorNames[bColor]);
+        b.block.setData('color', aColor);
+        b.block.setTexture(this.colorNames[aColor]);
+        this.tweens.add({ targets: [a.block, b.block], scale: { from: 1, to: 1 }, duration: 200, ease: 'Power2' });
+        SFX.click();
+        this.saveUndoState();
+        this.updateUI();
+    }
+
+    private bombCell(row: number, col: number) {
+        const block = this.board[row][col];
+        this.board[row][col] = null;
+        block.destroy();
+        SFX.bomb();
+        this.cameras.main.shake(200, 0.006);
+        this.spawnPopup('💥', BOARD_OFFSET_X + col * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2, BOARD_OFFSET_Y + row * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2, '#FF8E53');
+        this.movesLeft--;
+        // refill the empty cell from the top
+        const colorIdx = Math.floor(Math.random() * 7);
+        const nb: any = this.addBlock(BOARD_OFFSET_X + col * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2, -CELL_SIZE, colorIdx);
+        nb.setInteractive({ useHandCursor: true });
+        nb.column = col;
+        nb.row = row;
+        nb.isHeld = false;
+        nb.holdingSlot = -1;
+        nb.setData('color', colorIdx);
+        this.tweens.add({
+            targets: nb,
+            y: BOARD_OFFSET_Y + row * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2,
+            duration: 400,
+            ease: 'Cubic.easeOut',
+        });
+        this.board[row][col] = nb;
+        this.updateUI();
+    }
+
     private setupBoosterButtons() {
         // Undo button
         this.undoBtn = this.add.container(100, BOOSTER_Y, [
@@ -990,5 +1080,39 @@ export default class GameScene extends Phaser.Scene {
         }).setOrigin(0.5);
         this.shuffleBtn.setInteractive(new Phaser.Geom.Rectangle(-50, -20, 100, 40), Phaser.Geom.Rectangle.Contains);
         this.shuffleBtn.on('pointerdown', () => { SFX.click(); this.useBooster('shuffle'); });
+
+        // Swap button (row 2)
+        this.swapBtn = this.add.container(100, BOOSTER_Y + 70, [
+            this.add.image(0, 0, 'restart'),
+            this.add.text(0, 0, 'SWAP', {
+                fontSize: '16px',
+                fontFamily: 'Arial Black',
+                color: '#333333',
+            }).setOrigin(0.5),
+        ]);
+        this.swapCountText = this.add.text(132, BOOSTER_Y + 88, '1×', {
+            fontSize: '14px',
+            fontFamily: 'Arial Black',
+            color: '#FFD700',
+        }).setOrigin(0.5);
+        this.swapBtn.setInteractive(new Phaser.Geom.Rectangle(-50, -20, 100, 40), Phaser.Geom.Rectangle.Contains);
+        this.swapBtn.on('pointerdown', () => { SFX.click(); this.useBooster('swap'); });
+
+        // Bomb button (row 2)
+        this.bombBtn = this.add.container(360, BOOSTER_Y + 70, [
+            this.add.image(0, 0, 'restart'),
+            this.add.text(0, 0, 'BOMB', {
+                fontSize: '16px',
+                fontFamily: 'Arial Black',
+                color: '#333333',
+            }).setOrigin(0.5),
+        ]);
+        this.bombCountText = this.add.text(392, BOOSTER_Y + 88, '1×', {
+            fontSize: '14px',
+            fontFamily: 'Arial Black',
+            color: '#FFD700',
+        }).setOrigin(0.5);
+        this.bombBtn.setInteractive(new Phaser.Geom.Rectangle(-50, -20, 100, 40), Phaser.Geom.Rectangle.Contains);
+        this.bombBtn.on('pointerdown', () => { SFX.click(); this.useBooster('bomb'); });
     }
 }

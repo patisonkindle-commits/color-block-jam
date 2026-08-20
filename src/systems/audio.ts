@@ -37,6 +37,7 @@ export const SFX = {
     },
     win: () => { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.18, 'triangle', 0.13, i * 0.12)); },
     fail: () => { tone(220, 0.25, 'sawtooth', 0.1); tone(175, 0.3, 'sawtooth', 0.08, 0.15); },
+    bomb: () => { tone(90, 0.35, 'square', 0.18); tone(60, 0.4, 'sawtooth', 0.12, 0.05); },
     toggle: () => { muted = !muted; try { localStorage.setItem('cbj_muted', muted ? '1' : '0'); } catch { /* ignore */ } return muted; },
     isMuted: () => muted,
 };
