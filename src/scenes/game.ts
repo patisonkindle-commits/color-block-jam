@@ -605,7 +605,6 @@ export default class GameScene extends Phaser.Scene {
 
     private undoLastMove() {
         if (this.undoStack.length === 0) return;
-        if (this.boostersUsed.undo >= BOOSTER_COUNTS.undo) return;
 
         const lastState = this.undoStack.pop();
         if (!lastState) return;
@@ -642,7 +641,6 @@ export default class GameScene extends Phaser.Scene {
         this.movesLeft = lastState.movesLeft;
         this.score = lastState.score;
         this.currentLevel = lastState.level;
-        this.boostersUsed.undo++;  // count the undo as a booster use
 
         // Restore held slots from undo snapshot
         for (let i = 0; i < this.holdSlots.length; i++) {
