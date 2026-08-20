@@ -110,10 +110,9 @@ export default class GameScene extends Phaser.Scene {
                 this.holdSlots[i].block = block;
             }
         } else {
-            // Fresh game
+            // Fresh game — currentLevel carried over (0 on first play, N after NEXT LEVEL)
             this.movesLeft = LEVELS[this.currentLevel].moves;
             this.score = 0;
-            this.currentLevel = 0;
             this.board = [];
             this.createBoard();
             this.createHoldSlots();
@@ -680,12 +679,14 @@ export default class GameScene extends Phaser.Scene {
         btn.setInteractive(new Phaser.Geom.Rectangle(-110, -25, 220, 50), Phaser.Geom.Rectangle.Contains);
         btn.on('pointerdown', () => {
             if (nextLevel) {
+                clearSave();
                 this.currentLevel++;
                 this.score = 0;
                 this.movesLeft = LEVELS[this.currentLevel].moves;
                 this.levelCleared = false;
                 this.undoStack = [];
                 this.blocksMatched = 0;
+                this.boostersUsed = { undo: 0, slot: 0, shuffle: 0, swap: 0, bomb: 0 };
                 this.scene.restart();
             } else {
                 clearSave();
@@ -745,7 +746,7 @@ export default class GameScene extends Phaser.Scene {
         }).setOrigin(0.5);
         restartBtn.add([restartBg, restartText]);
         restartBtn.setInteractive(new Phaser.Geom.Rectangle(-110, -25, 220, 50), Phaser.Geom.Rectangle.Contains);
-        restartBtn.on('pointerdown', () => this.scene.restart());
+        restartBtn.on('pointerdown', () => { clearSave(); this.scene.restart(); });
     }
 
     // ====== Boosters ======
