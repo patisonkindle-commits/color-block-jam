@@ -609,6 +609,15 @@ export default class GameScene extends Phaser.Scene {
         const lastState = this.undoStack.pop();
         if (!lastState) return;
 
+        // Destroy ALL existing blocks (board + held) before rebuilding
+        this.board.flat().forEach((cell: any) => {
+            if (cell && cell.destroy) cell.destroy();
+        });
+        this.holdSlots.forEach(slot => {
+            if (slot.block && slot.block.destroy) slot.block.destroy();
+            slot.block = undefined;
+        });
+
         // Clear board, rebuild from snapshot
         this.board = [];
         for (let row = 0; row < BOARD_SIZE.rows; row++) {
