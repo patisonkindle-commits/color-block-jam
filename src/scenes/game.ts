@@ -40,6 +40,13 @@ export default class GameScene extends Phaser.Scene {
     }
 
     private createBoard() {
+        // Destroy existing board blocks (scene.restart() doesn't clean up)
+        this.children.each((child: any) => {
+            if (child instanceof Phaser.GameObjects.Image && child.getData('color') !== undefined) {
+                child.destroy();
+            }
+        });
+
         this.board = [];
         const startX = BOARD_OFFSET_X;
         const startY = BOARD_OFFSET_Y;
@@ -65,6 +72,14 @@ export default class GameScene extends Phaser.Scene {
     }
 
     private createHoldSlots() {
+        // Destroy existing hold slot backgrounds
+        this.children.each((child: any) => {
+            const rect = child as any;
+            if (rect instanceof Phaser.GameObjects.Rectangle && rect.slotIndex !== undefined) {
+                child.destroy();
+            }
+        });
+
         this.holdSlots = [];
         const holdY = HOLD_Y;
         const holdStartX = HOLD_START_X;
@@ -86,6 +101,10 @@ export default class GameScene extends Phaser.Scene {
     }
 
     private createHoldIndicator() {
+        // Destroy existing indicator
+        if (this.holdIndicator) {
+            this.holdIndicator.destroy();
+        }
         const holdY = HOLD_Y;
         const holdStartX = HOLD_START_X;
         
