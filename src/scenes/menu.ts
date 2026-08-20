@@ -63,7 +63,7 @@ export default class MenuScene extends Phaser.Scene {
             this.continueBtn.on('pointerdown', () => {
                 // Load save → set GameScene.currentLevel before GameScene.create reads it
                 if (save) {
-                    (this.game as any).scene.get('GameScene').currentLevel = save.level;
+                    (this.scene.get('GameScene') as any).currentLevel = save.level;
                 }
                 this.scene.start('GameScene');
             });
