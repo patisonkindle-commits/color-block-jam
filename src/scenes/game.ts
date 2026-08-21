@@ -1001,13 +1001,13 @@ export default class GameScene extends Phaser.Scene {
     }
 
     private swapBlocks(a: { row: number; col: number; block: any }, b: { row: number; col: number; block: any }) {
-        // swap colors + textures; positions stay (blocks don't move)
+        // swap colors + textures; preserve display size
         const aColor = a.block.getData('color');
         const bColor = b.block.getData('color');
         a.block.setData('color', bColor);
-        a.block.setTexture(this.colorNames[bColor]);
+        a.block.setDisplaySize(CELL_SIZE, CELL_SIZE).setTexture(this.colorNames[bColor]);
         b.block.setData('color', aColor);
-        b.block.setTexture(this.colorNames[aColor]);
+        b.block.setDisplaySize(CELL_SIZE, CELL_SIZE).setTexture(this.colorNames[aColor]);
         this.tweens.add({ targets: [a.block, b.block], scale: { from: 1, to: 1 }, duration: 200, ease: 'Power2' });
         SFX.click();
         this.saveUndoState();

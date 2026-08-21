@@ -6,6 +6,9 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
+    rollupOptions: {
+      input: 'index.html', // use our hand-edited index.html, not src/game.ts
+    },
   },
   server: {
     port: 5173,
