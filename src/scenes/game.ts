@@ -955,13 +955,15 @@ export default class GameScene extends Phaser.Scene {
             b.setData('color', this.colorNames.indexOf(aTex));
         }
 
-        // Animate: scale + alpha pulse for visual feedback
+        // Animate: brief alpha flash for visual feedback
         this.tweens.add({
             targets: blocks,
-            scale: { from: 0.8, to: 1 },
-            alpha: { from: 0.4, to: 1 },
-            duration: 300,
-            ease: 'Back.easeOut',
+            alpha: 0.6,
+            duration: 100,
+            yoyo: true,
+            onComplete: () => {
+                blocks.forEach(b => b.setAlpha(1));
+            },
         });
     }
 
