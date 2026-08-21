@@ -7,7 +7,7 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     rollupOptions: {
-      input: 'index.html', // use our hand-edited index.html, not src/game.ts
+      input: 'index.html',
     },
   },
   server: {
