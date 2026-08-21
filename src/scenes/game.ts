@@ -943,14 +943,20 @@ export default class GameScene extends Phaser.Scene {
             }
         }
 
+        // Cache display sizes per color index (preserve after setTexture)
+        const cachedSizes: { x: number; y: number }[] = blocks.map(b => ({ x: b.displayWidth, y: b.displayHeight }));
+
         // Fisher-Yates swap on block references
         for (let i = blocks.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             const a = blocks[i], b = blocks[j];
-            // Swap textures (forces Phaser to re-render)
+            // Swap textures AND restore cached display sizes
             const aTex = a.texture.key, bTex = b.texture.key;
             a.setTexture(bTex);
             b.setTexture(aTex);
+            const aIdx = blocks.indexOf(a), bIdx = blocks.indexOf(b);
+            a.setSize(cachedSizes[aIdx].x, cachedSizes[aIdx].y);
+            b.setSize(cachedSizes[bIdx].x, cachedSizes[bIdx].y);
             a.setData('color', this.colorNames.indexOf(bTex));
             b.setData('color', this.colorNames.indexOf(aTex));
         }
