@@ -17,10 +17,11 @@ const BEST_KEY = 'cbj_best_v1';
 export function getBestScore(): number {
     try {
         const raw = localStorage.getItem(BEST_KEY);
-        const n = raw ? parseInt(raw, 10) : 0;
-        return Number.isFinite(n) ? n : 0;
+        if (raw === null) return -1; // sentinel: no best score
+        const n = parseInt(raw, 10);
+        return Number.isFinite(n) ? n : -1;
     } catch {
-        return 0;
+        return -1;
     }
 }
 

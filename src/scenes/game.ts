@@ -37,6 +37,7 @@ export default class GameScene extends Phaser.Scene {
     private bombCountText!: Phaser.GameObjects.Text;
 
     private undoStack: { boardState: any[][]; movesLeft: number; score: number; level: number; slotCount: number; heldState: any[] }[] = [];
+    private gameOverCalled: boolean = false;
 
     // Booster target modes — SWAP waits for 2 board blocks, BOMB waits for 1
     private boosterMode: 'swap' | 'bomb' | null = null;
@@ -55,6 +56,7 @@ export default class GameScene extends Phaser.Scene {
         }
         // per-level state reset — scene.restart() reuses this instance
         this.boostersUsed = { undo: 0, slot: 0, shuffle: 0, swap: 0, bomb: 0 };
+        this.gameOverCalled = false;
         this.boosterMode = null;
         this.swapFirst = null;
         this.levelCleared = false;
@@ -574,13 +576,14 @@ export default class GameScene extends Phaser.Scene {
     }
 
     private updateUI() {
+        const curLevelData = LEVELS[Math.min(this.currentLevel, LEVELS.length - 1)];
         this.registry.set('hud', {
             score: this.score,
             moves: this.movesLeft,
             level: this.currentLevel,
             maxCombo: this.maxCombo,
             combo: this.comboLevel,
-            target: LEVELS[this.currentLevel].target,
+            target: curLevelData?.target,
             undosLeft: 3 - this.undoStack.length,  // max 3 undos per level
             boostersUsed: this.boostersUsed,
         });
@@ -591,14 +594,15 @@ export default class GameScene extends Phaser.Scene {
         if (this.swapCountText) this.swapCountText.setText(`${BOOSTER_COUNTS.swap - this.boostersUsed.swap}×`);
         if (this.bombCountText) this.bombCountText.setText(`${BOOSTER_COUNTS.bomb - this.boostersUsed.bomb}×`);
 
-        if (this.movesLeft <= 0) {
+        if (this.movesLeft <= 0 && !this.gameOverCalled) {
             this.gameOver();
         }
     }
 
     private checkVictory() {
         if (this.levelCleared) return;
-        const target = LEVELS[this.currentLevel].target;
+        const maxLevel = Math.min(this.currentLevel, LEVELS.length - 1);
+        const target = LEVELS[maxLevel].target;
         if (this.score < target) return;
         this.levelCleared = true;
         this.saveGameProgress();
@@ -883,6 +887,7 @@ export default class GameScene extends Phaser.Scene {
     }
 
     private boostersUsed = { undo: 0, slot: 0, shuffle: 0, swap: 0, bomb: 0 };
+    private swapBoosterPending = false;
 
     private useBooster(action: string) {
         if (this.boostersUsed[action as keyof typeof this.boostersUsed] >= BOOSTER_COUNTS[action as keyof typeof BOOSTER_COUNTS]) {
@@ -894,6 +899,7 @@ export default class GameScene extends Phaser.Scene {
         if (action === 'swap' && this.board.flat().filter((b: any) => b).length < 2) return;
         if (action === 'bomb' && this.board.flat().filter((b: any) => b && b.getData('color') !== OBSTACLE).length === 0) return;
         this.boostersUsed[action as keyof typeof this.boostersUsed]++;
+        this.swapBoosterPending = (action === 'swap');
         switch (action) {
             case 'undo':
                 this.undoLastMove();
@@ -943,17 +949,33 @@ export default class GameScene extends Phaser.Scene {
             }
         }
 
+        // Cache scaleX/scaleY BEFORE Fisher-Yates (setDisplaySize uses getters tied to frame)
+        const cachedScales = blocks.map(b => ({
+            sx: b.scaleX,
+            sy: b.scaleY
+        }));
+
         // Fisher-Yates swap on block references
         for (let i = blocks.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             const a = blocks[i], b = blocks[j];
-            const aTex = a.texture.key, bTex = b.texture.key;
+
+            const aTex = a.texture.key;
+            const bTex = b.texture.key;
+
+            // Swap textures
             a.setTexture(bTex);
-            a.setData('color', this.colorNames.indexOf(bTex));
             b.setTexture(aTex);
+
+            // Restore cached scales AFTER setTexture
+            const aIdx = i;
+            const bIdx = j;
+            if (cachedScales[aIdx]) a.setScale(cachedScales[aIdx].sx, cachedScales[aIdx].sy);
+            if (cachedScales[bIdx]) b.setScale(cachedScales[bIdx].sx, cachedScales[bIdx].sy);
+
+            // Update color data
+            a.setData('color', this.colorNames.indexOf(bTex));
             b.setData('color', this.colorNames.indexOf(aTex));
-            a.setDisplaySize(CELL_SIZE, CELL_SIZE);
-            b.setDisplaySize(CELL_SIZE, CELL_SIZE);
         }
 
         // Animate: brief alpha flash for visual feedback
@@ -996,15 +1018,32 @@ export default class GameScene extends Phaser.Scene {
     }
 
     private swapBlocks(a: { row: number; col: number; block: any }, b: { row: number; col: number; block: any }) {
-        // swap colors + textures; preserve display size
-        const aColor = a.block.getData('color');
-        const bColor = b.block.getData('color');
-        a.block.setData('color', bColor);
-        a.block.setDisplaySize(CELL_SIZE, CELL_SIZE).setTexture(this.colorNames[bColor]);
-        b.block.setData('color', aColor);
-        b.block.setDisplaySize(CELL_SIZE, CELL_SIZE).setTexture(this.colorNames[aColor]);
-        this.tweens.add({ targets: [a.block, b.block], scale: { from: 1, to: 1 }, duration: 200, ease: 'Power2' });
+        const aBlock = a.block, bBlock = b.block;
+
+        // Cache scaleX/scaleY BEFORE swap (displayWidth is a getter/setter tied to frame)
+        const aScaleX = aBlock.scaleX, aScaleY = aBlock.scaleY;
+        const bScaleX = bBlock.scaleX, bScaleY = bBlock.scaleY;
+
+        // Swap texture keys
+        const aTex = aBlock.texture.key;
+        const bTex = bBlock.texture.key;
+        aBlock.setTexture(bTex);
+        bBlock.setTexture(aTex);
+
+        // Restore scale AFTER setTexture (setTexture recalculates scale from new frame)
+        aBlock.setScale(aScaleX, aScaleY);
+        bBlock.setScale(bScaleX, bScaleY);
+
+        // Swap color data
+        aBlock.setData('color', this.colorNames.indexOf(bTex));
+        bBlock.setData('color', this.colorNames.indexOf(aTex));
+
+        this.tweens.add({ targets: [aBlock, bBlock], scale: { from: 1, to: 1 }, duration: 200, ease: 'Power2' });
         SFX.click();
+        if (this.swapBoosterPending) {
+            this.swapBoosterPending = false;
+            // swap booster already consumed above
+        }
         this.saveUndoState();
         this.updateUI();
     }
