@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 
 export const GAME_CONFIG: Phaser.Types.Core.GameConfig = {
-    type: Phaser.AUTO,
+    type: Phaser.CANVAS,
     width: 720,
     height: 1280,
     backgroundColor: '#1a1a2e',
