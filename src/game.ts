@@ -28,7 +28,7 @@ export class Game {
         };
 
         this.game = new Phaser.Game({
-            type: Phaser.AUTO,
+            type: Phaser.CANVAS,
             ...GAME_CONFIG,
             scene: [
                 new BootScene(),
